@@ -12,23 +12,28 @@ export interface Appointment {
 
 // Speak using browser's native speechSynthesis — simple, reliable, no network needed
 function tts(text: string, onEnd: () => void, onError: () => void) {
-  // Prefer Hindi voice; fall back to any available voice
   const voices = window.speechSynthesis.getVoices();
-  const hindiVoices = voices.filter(v => v.lang.startsWith('hi'));
   
-  // Prefer 'online' or 'network' neural voices as they sound perfectly human on mobile
-  let hindiVoice = hindiVoices.find(v => v.name.toLowerCase().includes('online') || v.name.toLowerCase().includes('network')) 
-                   || hindiVoices[0] || null;
+  // Aggressively look for High-Quality / Cloud voices which sound much more human-like
+  const premiumVoice = voices.find(v => 
+    v.lang.startsWith('hi') && 
+    (v.name.includes('Google') || v.name.includes('Online') || v.name.includes('Natural') || v.name.includes('Premium'))
+  );
+  
+  const defaultHindiVoice = voices.find(v => v.lang.startsWith('hi'));
+  const bestVoice = premiumVoice || defaultHindiVoice || null;
 
   const utter = new SpeechSynthesisUtterance(text);
-  if (hindiVoice) {
-    utter.voice = hindiVoice;
-    utter.lang = hindiVoice.lang;
+  if (bestVoice) {
+    utter.voice = bestVoice;
+    utter.lang = bestVoice.lang;
   } else {
     utter.lang = 'hi-IN';
   }
-  utter.rate = 0.95; // More natural pacing than 0.85
-  utter.pitch = 1;
+  
+  // Set speed slightly faster for a more natural conversational flow
+  utter.rate = 0.95; 
+  utter.pitch = 1.05; // slight pitch increase makes it sound slightly more energetic and human
 
   // Fallback in case browser TTS engine bugs out and doesn't fire onend
   let finished = false;
@@ -175,14 +180,14 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
     let digits = '';
     while (digits.length !== 10 && isActiveRef.current) {
       await speak(digits.length === 0
-        ? "जी शुक्रिया। ... अब बुकिंग कन्फर्म करने के लिए, क्या आप अपना दस अंकों का मोबाइल नंबर बता सकते हैं?"
-        : `माफ़ कीजिएगा, आपने जो नंबर बताया उसमें ${digits.length} अंक हैं, जबकि नंबर दस अंकों का होना चाहिए। ... कृपया एक बार फिर से पूरा नंबर बताएं।`
+        ? "धन्यवाद। अब कृपया अपना 10 अंकों का मोबाइल नंबर बताएं।"
+        : `आपने ${digits.length} अंक बताए। मोबाइल नंबर 10 अंकों का होना चाहिए। कृपया दोबारा पूरा नंबर बताएं।`
       );
       if (!isActiveRef.current) return '';
       const raw = await listenOnce();
       digits = extractDigits(raw);
       if (!digits && isActiveRef.current) {
-        await speak("सॉरी, मुझे आवाज़ नहीं आई। ... कृपया अपना मोबाइल नंबर दोबारा बोलें।");
+        await speak("मुझे नंबर सुनाई नहीं दिया। कृपया दोबारा बताएं।");
       }
     }
     return digits;
@@ -219,14 +224,14 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
     let parsedDateStr = '';
     while (isActiveRef.current) {
       resultDate = await askUntilAnswered(
-        resultDate === '' ? "ठीक है, नंबर नोट कर लिया गया है। ... अब आप किस दिन डॉक्टर साहब से मिलना चाहेंगे? ... आप 'आज', 'कल', या कोई और दिन बोल सकते हैं।" : "कृपया कोई और दिन चुनें, जैसे कि कल, या परसों।",
-        "माफ़ कीजिएगा, मैं समझ नहीं पाई। ... कृपया दिन फिर से बताएं।"
+        resultDate === '' ? "ठीक है। अब कृपया अपनी अपॉइंटमेंट की तारीख बताएं।" : "कृपया कोई और दिन चुनें, जैसे कल या परसों।",
+        "मुझे तारीख समझ नहीं आई। कृपया दोबारा बताएं।"
       );
       if (!isActiveRef.current) return { text: '', dateStr: '' };
       
       const parsed = parseDate(resultDate);
       if (parsed.isSunday) {
-        await speak("माफ़ कीजिएगा, रविवार को क्लिनिक बंद रहता है। ... क्या आप सोमवार या किसी और दिन आना चाहेंगे?");
+        await speak("माफ़ कीजिएगा, रविवार को क्लिनिक बंद रहती है।");
       } else {
         parsedDateStr = parsed.dateStr;
         break;
@@ -260,22 +265,23 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
     let resultTime = '';
     while (isActiveRef.current) {
       resultTime = await askUntilAnswered(
-        resultTime === '' ? "जी बिलकुल। ... और आप कितने बजे आना पसंद करेंगे?" : "कृपया कोई और समय बताएं।",
-        "सॉरी, मैं सुन नहीं पाई। ... कृपया समय फिर से बताएं, जैसे कि सुबह दस बजे, या शाम पांच बजे।"
+        resultTime === '' ? "और कृपया अपना पसंदीदा समय बताएं।" : "कृपया कोई और समय बताएं।",
+        "मुझे समय सुनाई नहीं दिया। कृपया दोबारा बताएं, जैसे — 10 बजे या 4 बजे।"
       );
       if (!isActiveRef.current) return '';
       
       const parsedSlot = parseTime(resultTime);
       if (!parsedSlot) {
+        // Can't strictly parse it, just accept what they said
         return resultTime;
       }
       
       if (isSlotBooked(dateStr, parsedSlot)) {
          const available = getAvailableSlots(dateStr);
          const suggestions = available.slice(0, 3).join(', ');
-         await speak(`माफ़ कीजिएगा, ${parsedSlot} का समय पहले से बुक है। ... मेरे पास ${suggestions} के स्लॉट्स खाली हैं। ... इनमें से आपके लिए क्या सही रहेगा?`);
+         await speak(`माफ़ कीजिएगा, ${parsedSlot} का समय पहले से बुक है। इस दिन के लिए उपलब्ध समय हैं: ${suggestions}। आप इनमें से क्या चुनना चाहेंगे?`);
       } else {
-         return parsedSlot; 
+         return parsedSlot; // exact slot available
       }
     }
     return resultTime;
@@ -289,8 +295,8 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
 
     // --- STEP 1: Name ---
     name = await askUntilAnswered(
-      "नमस्ते! डॉ. रमेश चावलानी के क्लिनिक में आपका स्वागत है। ... मैं आपकी अपॉइंटमेंट बुक कर सकती हूँ। ... सबसे पहले, क्या आप मुझे अपना शुभ नाम बता सकते हैं?",
-      "माफ़ कीजिएगा, मैं ठीक से सुन नहीं पाई। ... क्या आप अपना नाम फिर से बता सकते हैं?"
+      "नमस्ते! डॉ. रमेश चावलानी की क्लिनिक में कॉल करने के लिए धन्यवाद। कृपया अपना नाम बताएं।",
+      "मुझे आपका नाम सुनाई नहीं दिया। कृपया दोबारा बताएं।"
     );
     if (!isActiveRef.current) return;
 
@@ -326,15 +332,16 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
 
       if (!detailsSpoken) {
         await speak(
-          `अच्छा, मैं एक बार आपकी जानकारी कन्फर्म कर लेती हूँ। ... ` +
-          `आपका नाम है ${name}, ... ` +
-          `नंबर है ${phone.split('').join(' ')}, ... ` +
-          `और अपॉइंटमेंट है ${date} को, ${time} बजे। ... ` +
-          `क्या यह जानकारी बिल्कुल सही है? आप हाँ या ना में जवाब दे सकते हैं।`
+          `ठीक है, मैं जानकारी दोहराता हूँ — ` +
+          `नाम: ${name}। ` +
+          `मोबाइल नंबर: ${phone.split('').join(' ')}। ` +
+          `तारीख: ${date}। ` +
+          `समय: ${time}। ` +
+          `क्या यह जानकारी सही है? हाँ कहें, या बताएं क्या बदलना है।`
         );
         detailsSpoken = true;
       } else {
-        await speak(`क्या यह सब सही है? हाँ, या ना बोलें।`);
+        await speak(`क्या यह जानकारी सही है? हाँ कहें, या वह जानकारी बताएं जिसे आप बदलना चाहते हैं।`);
       }
       if (!isActiveRef.current) return;
 
@@ -355,12 +362,12 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
 
         if (field === 'name') {
           name = await askUntilAnswered(
-            "ठीक है। ... कृपया सही नाम बताएं।",
+            "ठीक है। कृपया सही नाम बताएं。",
             "नाम सुनाई नहीं दिया, दोबारा बताएं।"
           );
           detailsSpoken = false; // Details changed, read them again next loop
         } else if (field === 'phone') {
-          await speak("ठीक है। ... कृपया सही मोबाइल नंबर बताएं।");
+          await speak("ठीक है। कृपया सही मोबाइल नंबर बताएं।");
           if (!isActiveRef.current) return;
           phone = await askPhone();
           detailsSpoken = false;
@@ -375,7 +382,7 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
           detailsSpoken = false;
         } else {
           // Couldn't identify field — ask them to specify
-          await speak("कृपया बताएं ... नाम, नंबर, तारीख, या समय में से क्या बदलना है?");
+          await speak("कृपया बताएं — नाम, नंबर, तारीख, या समय में से क्या बदलना है?");
         }
         if (!isActiveRef.current) return;
       }
@@ -385,7 +392,7 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
     patientInfoRef.current = `${name} - ${phone}`;
     dateTimeInfoRef.current = `${date} - ${time}`;
 
-    await speak("बहुत बढ़िया! आपकी अपॉइंटमेंट पक्की हो गई है। ... डॉ. रमेश चावलानी के क्लिनिक में कॉल करने के लिए आपका बहुत-बहुत धन्यवाद। ... आपका दिन शुभ हो!");
+    await speak("बहुत अच्छा! आपकी अपॉइंटमेंट सफलतापूर्वक बुक हो गई है। डॉ. रमेश चावलानी आपसे जल्द मिलेंगे। धन्यवाद।");
     if (!isActiveRef.current) return;
 
     onAppointmentBooked({
