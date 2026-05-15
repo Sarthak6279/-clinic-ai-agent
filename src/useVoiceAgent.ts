@@ -402,7 +402,7 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
       }
       else if (step === 'book') {
         patientInfoRef.current = `${name} - ${phone}`;
-        dateTimeInfoRef.current = `${date} - ${time}`;
+        dateTimeInfoRef.current = `${parsedDateStr} - ${time}`;
 
         await speak("बहुत अच्छा! आपकी अपॉइंटमेंट सफलतापूर्वक बुक हो गई है। डॉक्टर रमेश चावलानी आपसे जल्द मिलेंगे। धन्यवाद।");
         if (!isActiveRef.current) return;

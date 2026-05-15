@@ -478,14 +478,22 @@ export default function App() {
   }, [isAdminAuthed]);
 
   const handleBooked = (a: Appointment) => {
-    // Also save to persistent store from voice bookings
+    // Split the mapped strings
+    const partsName = a.patientInfo.split(' - ');
+    const partsDate = a.dateTimeInfo.split(' - ');
+    
+    const name = partsName[0]?.trim() || a.patientInfo;
+    const phone = partsName[1]?.trim() || 'Via Voice AI';
+    const date = partsDate[0]?.trim() || new Date().toISOString().slice(0, 10);
+    const time = partsDate[1]?.trim() || 'AI Booking';
+
     const slot: BookedSlot = {
       id: generateId(),
-      date: new Date().toISOString().slice(0, 10),
-      time: 'AI Booking',
-      patientName: a.patientInfo,
-      patientPhone: 'Via Voice AI',
-      reason: a.dateTimeInfo,
+      date: date,
+      time: time,
+      patientName: name,
+      patientPhone: phone,
+      reason: 'AI Voice Booking',
       bookedVia: 'ai',
       createdAt: a.createdAt,
       status: 'confirmed',
