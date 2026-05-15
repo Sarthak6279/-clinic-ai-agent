@@ -478,11 +478,11 @@ export default function App() {
   }, [isAdminAuthed]);
 
   const handleBooked = (a: Appointment) => {
-    // Split the mapped strings
-    const partsName = a.patientInfo.split(' - ');
-    const partsDate = a.dateTimeInfo.split(' - ');
+    // Split the mapped strings safely
+    const partsName = (a.patientInfo || '').split(' - ');
+    const partsDate = (a.dateTimeInfo || '').split(' - ');
     
-    const name = partsName[0]?.trim() || a.patientInfo;
+    const name = partsName[0]?.trim() || a.patientInfo || 'Unknown';
     const phone = partsName[1]?.trim() || 'Via Voice AI';
     const date = partsDate[0]?.trim() || new Date().toISOString().slice(0, 10);
     const time = partsDate[1]?.trim() || 'AI Booking';
