@@ -54,7 +54,7 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition();
-      recognition.continuous = false;
+      recognition.continuous = true;
       recognition.interimResults = false;
       recognition.lang = 'hi-IN';
 
@@ -66,6 +66,7 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
         if (final) {
           setTranscript(final);
           currentTranscriptRef.current = final;
+          try { recognition.stop(); } catch (_) {}
         }
       };
 
@@ -315,22 +316,32 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
 
     // --- CONFIRMATION LOOP: repeat back, allow per-field correction ---
     let confirmed = false;
+    let detailsSpoken = false;
     while (!confirmed && isActiveRef.current) {
       setAgentState('PROCESSING'); await new Promise(r => setTimeout(r, 350));
       if (!isActiveRef.current) return;
 
-      await speak(
-        `ठीक है, मैं जानकारी दोहराता हूँ — ` +
-        `नाम: ${name}। ` +
-        `मोबाइल नंबर: ${phone.split('').join(' ')}। ` +
-        `तारीख: ${date}। ` +
-        `समय: ${time}। ` +
-        `क्या यह जानकारी सही है? हाँ कहें, या बताएं क्या बदलना है।`
-      );
+      if (!detailsSpoken) {
+        await speak(
+          `ठीक है, मैं जानकारी दोहराता हूँ — ` +
+          `नाम: ${name}। ` +
+          `मोबाइल नंबर: ${phone.split('').join(' ')}। ` +
+          `तारीख: ${date}। ` +
+          `समय: ${time}। ` +
+          `क्या यह जानकारी सही है? हाँ कहें, या बताएं क्या बदलना है।`
+        );
+        detailsSpoken = true;
+      } else {
+        await speak(`क्या यह जानकारी सही है? हाँ कहें, या वह जानकारी बताएं जिसे आप बदलना चाहते हैं।`);
+      }
       if (!isActiveRef.current) return;
 
       const reply = await listenOnce();
       if (!isActiveRef.current) return;
+
+      if (!reply.trim()) {
+        continue; // They didn't answer, loop will ask the short question again
+      }
 
       if (isYes(reply)) {
         confirmed = true;
@@ -345,17 +356,21 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
             "ठीक है। कृपया सही नाम बताएं。",
             "नाम सुनाई नहीं दिया, दोबारा बताएं।"
           );
+          detailsSpoken = false; // Details changed, read them again next loop
         } else if (field === 'phone') {
           await speak("ठीक है। कृपया सही मोबाइल नंबर बताएं।");
           if (!isActiveRef.current) return;
           phone = await askPhone();
+          detailsSpoken = false;
         } else if (field === 'date') {
           const dRes = await askSmartDate();
           if (!isActiveRef.current) return;
           date = dRes.text;
           parsedDateStr = dRes.dateStr;
+          detailsSpoken = false;
         } else if (field === 'time') {
           time = await askSmartTime(parsedDateStr);
+          detailsSpoken = false;
         } else {
           // Couldn't identify field — ask them to specify
           await speak("कृपया बताएं — नाम, नंबर, तारीख, या समय में से क्या बदलना है?");
