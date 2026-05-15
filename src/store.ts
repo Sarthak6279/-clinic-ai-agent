@@ -43,7 +43,11 @@ let cachedAppointments: BookedSlot[] = getLocalAppointments();
 export async function fetchAppointments(): Promise<BookedSlot[]> {
   if (supabase) {
     const { data, error } = await supabase.from('appointments').select('*').order('createdAt', { ascending: false });
-    if (!error && data) {
+    if (error) {
+      console.error("Supabase fetch error:", error);
+      return getLocalAppointments();
+    }
+    if (data) {
       cachedAppointments = data;
       localStorage.setItem(KEY, JSON.stringify(data));
       return data;
@@ -53,33 +57,36 @@ export async function fetchAppointments(): Promise<BookedSlot[]> {
 }
 
 export async function saveAppointment(slot: BookedSlot): Promise<void> {
-  cachedAppointments.push(slot);
+  if (supabase) {
+    const { error } = await supabase.from('appointments').insert([slot]);
+    if (error) console.error("Supabase insert error:", error);
+  }
+
+  cachedAppointments = [slot, ...cachedAppointments.filter(a => a.id !== slot.id)];
   localStorage.setItem(KEY, JSON.stringify(cachedAppointments));
   window.dispatchEvent(new Event('appointments-updated'));
-
-  if (supabase) {
-    await supabase.from('appointments').insert([slot]);
-  }
 }
 
 export async function updateAppointmentStatus(id: string, status: BookedSlot['status']): Promise<void> {
+  if (supabase) {
+    const { error } = await supabase.from('appointments').update({ status }).eq('id', id);
+    if (error) console.error("Supabase update error:", error);
+  }
+
   cachedAppointments = cachedAppointments.map(a => a.id === id ? { ...a, status } : a);
   localStorage.setItem(KEY, JSON.stringify(cachedAppointments));
   window.dispatchEvent(new Event('appointments-updated'));
-
-  if (supabase) {
-    await supabase.from('appointments').update({ status }).eq('id', id);
-  }
 }
 
 export async function deleteAppointment(id: string): Promise<void> {
+  if (supabase) {
+    const { error } = await supabase.from('appointments').delete().eq('id', id);
+    if (error) console.error("Supabase delete error:", error);
+  }
+
   cachedAppointments = cachedAppointments.filter(a => a.id !== id);
   localStorage.setItem(KEY, JSON.stringify(cachedAppointments));
   window.dispatchEvent(new Event('appointments-updated'));
-
-  if (supabase) {
-    await supabase.from('appointments').delete().eq('id', id);
-  }
 }
 
 export function isSlotBooked(date: string, time: string): boolean {
