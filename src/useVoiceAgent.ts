@@ -17,15 +17,26 @@ function tts(text: string, onEnd: () => void, onError: () => void) {
   const hindiVoice = voices.find(v => v.lang.startsWith('hi')) || null;
 
   const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = 'hi-IN';
+  if (hindiVoice) {
+    utter.voice = hindiVoice;
+    utter.lang = hindiVoice.lang;
+  } else {
+    utter.lang = 'hi-IN';
+  }
   utter.rate = 0.85;
   utter.pitch = 1;
-  if (hindiVoice) utter.voice = hindiVoice;
 
-  utter.onend = onEnd;
-  utter.onerror = onError;
+  // Fallback in case browser TTS engine bugs out and doesn't fire onend
+  let finished = false;
+  const finish = () => { if (!finished) { finished = true; onEnd(); } };
+
+  utter.onend = finish;
+  utter.onerror = () => { finished = true; onError(); };
 
   window.speechSynthesis.speak(utter);
+
+  // Failsafe timeout based on text length (max 15 seconds)
+  setTimeout(finish, Math.min(Math.max(text.length * 150, 4000), 15000));
 }
 
 export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) => void) {

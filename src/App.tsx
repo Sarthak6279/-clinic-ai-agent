@@ -495,7 +495,14 @@ export default function App() {
 
   const { agentState, transcript, startCall, endCall } = useVoiceAgent(handleBooked);
 
-  const handleOpenCall = () => { setIsWidgetOpen(true); startCall(); };
+  const handleOpenCall = () => { 
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert("⚠️ Voice AI is currently only supported on Google Chrome, Edge, and Safari browsers.");
+      return;
+    }
+    setIsWidgetOpen(true); 
+    startCall(); 
+  };
   const handleCloseCall = () => { endCall(); setIsWidgetOpen(false); };
 
   useEffect(() => {
