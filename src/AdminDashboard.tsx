@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { loadAppointments, updateAppointmentStatus, deleteAppointment, type BookedSlot } from './store';
 
 function statusColor(s: BookedSlot['status']) {

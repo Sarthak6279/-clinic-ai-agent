@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useVoiceAgent, type Appointment } from './useVoiceAgent';
-import { saveAppointment, generateId, loadAppointments, type BookedSlot } from './store';
+import { saveAppointment, generateId, type BookedSlot } from './store';
 import AdminLogin from './AdminLogin';
 import AdminDashboard from './AdminDashboard';
 import BookingCalendar from './BookingCalendar';
@@ -390,7 +390,7 @@ function Contact() {
   );
 }
 
-function Footer({ onBook }: { onBook: () => void }) {
+function Footer() {
   return (
     <footer>
       <div className="container">
@@ -525,7 +525,7 @@ export default function App() {
       <Testimonials />
       <FAQ />
       <Contact />
-      <Footer onBook={handleOpenCall} />
+      <Footer />
 
       {/* No floating Doctor Login pill - moved to nav */}
 
