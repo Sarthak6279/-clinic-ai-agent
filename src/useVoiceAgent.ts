@@ -142,18 +142,6 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
     });
   }, []);
 
-  // Helper: ask until non-empty answer received
-  const askUntilAnswered = useCallback(async (question: string, retryQ: string): Promise<string> => {
-    let answer = '';
-    while (!answer.trim() && isActiveRef.current) {
-      await speak(question);
-      if (!isActiveRef.current) return '';
-      answer = await listenOnce();
-      question = retryQ;
-    }
-    return answer.trim();
-  }, [speak, listenOnce]);
-
   // Helper: check if user said yes
   const isYes = useCallback((r: string) => {
     const s = r.toLowerCase();
@@ -162,7 +150,42 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
       s.includes('sahi') || s.includes('bilkul') || s.includes('ok') || s.includes('okay');
   }, []);
 
-  // Extract only digits from speech (e.g. "nine eight seven..." → "987...")
+  const checkGlobalIntent = useCallback((text: string): 'name'|'phone'|'date'|'time'|null => {
+    const r = text.toLowerCase();
+    const wantsToChange = r.includes('galat') || r.includes('wrong') || r.includes('badal') || r.includes('change') || r.includes('sahi nahi') || r.includes('galt');
+    if (!wantsToChange) return null;
+
+    if (r.includes('naam') || r.includes('नाम') || r.includes('name')) return 'name';
+    if (r.includes('number') || r.includes('नंबर') || r.includes('mobile') || r.includes('phone') || r.includes('फोन')) return 'phone';
+    if (r.includes('date') || r.includes('तारीख') || r.includes('din') || r.includes('दिन') || r.includes('tarikh')) return 'date';
+    if (r.includes('time') || r.includes('समय') || r.includes('baje') || r.includes('बजे')) return 'time';
+    return null;
+  }, []);
+
+  const identifyField = (text: string): 'name'|'phone'|'date'|'time'|null => {
+    const r = text.toLowerCase();
+    if (r.includes('naam') || r.includes('नाम') || r.includes('name')) return 'name';
+    if (r.includes('number') || r.includes('नंबर') || r.includes('mobile') || r.includes('phone') || r.includes('फोन')) return 'phone';
+    if (r.includes('date') || r.includes('तारीख') || r.includes('din') || r.includes('दिन')) return 'date';
+    if (r.includes('time') || r.includes('समय') || r.includes('baje') || r.includes('बजे')) return 'time';
+    return null;
+  };
+
+  const askUntilAnswered = useCallback(async (question: string, retryQ: string): Promise<{val: string, intent: any}> => {
+    let answer = '';
+    while (!answer.trim() && isActiveRef.current) {
+      await speak(question);
+      if (!isActiveRef.current) return {val:'', intent:null};
+      answer = await listenOnce();
+      
+      const intent = checkGlobalIntent(answer);
+      if (intent) return { val: '', intent };
+
+      question = retryQ;
+    }
+    return { val: answer.trim(), intent: null };
+  }, [speak, listenOnce, checkGlobalIntent]);
+
   const extractDigits = (text: string): string => {
     const wordMap: Record<string, string> = {
       'zero':'0','one':'1','two':'2','three':'3','four':'4','five':'5',
@@ -175,35 +198,30 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
     return result.replace(/\D/g, '');
   };
 
-  // Ask for phone and validate exactly 10 digits
-  const askPhone = useCallback(async (): Promise<string> => {
+  const askPhone = useCallback(async (): Promise<{val: string, intent: any}> => {
     let digits = '';
+    let isFirst = true;
     while (digits.length !== 10 && isActiveRef.current) {
-      await speak(digits.length === 0
-        ? "धन्यवाद। अब कृपया अपना 10 अंकों का मोबाइल नंबर बताएं।"
-        : `आपने ${digits.length} अंक बताए। मोबाइल नंबर 10 अंकों का होना चाहिए। कृपया दोबारा पूरा नंबर बताएं।`
-      );
-      if (!isActiveRef.current) return '';
+      if (!isFirst) {
+        await speak(`आपने ${digits.length} अंक बताए। मोबाइल नंबर 10 अंकों का होना चाहिए। कृपया दोबारा पूरा नंबर बताएं।`);
+      }
+      isFirst = false;
+
+      if (!isActiveRef.current) return {val:'', intent:null};
       const raw = await listenOnce();
+      
+      const intent = checkGlobalIntent(raw);
+      if (intent) return { val: '', intent };
+
       digits = extractDigits(raw);
       if (!digits && isActiveRef.current) {
         await speak("मुझे नंबर सुनाई नहीं दिया। कृपया दोबारा बताएं।");
+        isFirst = true; 
       }
     }
-    return digits;
-  }, [speak, listenOnce]);
+    return { val: digits, intent: null };
+  }, [speak, listenOnce, checkGlobalIntent]);
 
-  // Identify which field the user wants to correct
-  const identifyField = (text: string): 'name'|'phone'|'date'|'time'|null => {
-    const r = text.toLowerCase();
-    if (r.includes('naam') || r.includes('नाम') || r.includes('name')) return 'name';
-    if (r.includes('number') || r.includes('नंबर') || r.includes('mobile') || r.includes('phone') || r.includes('फोन')) return 'phone';
-    if (r.includes('date') || r.includes('तारीख') || r.includes('din') || r.includes('दिन')) return 'date';
-    if (r.includes('time') || r.includes('समय') || r.includes('baje') || r.includes('बजे')) return 'time';
-    return null;
-  };
-
-  // Helper: parse date from text to YYYY-MM-DD
   const parseDate = (text: string): { dateStr: string, isSunday: boolean } => {
     const d = new Date();
     const lower = text.toLowerCase();
@@ -219,16 +237,18 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
     return { dateStr: d.toISOString().split('T')[0], isSunday: d.getDay() === 0 };
   };
 
-  const askSmartDate = useCallback(async (): Promise<{ text: string, dateStr: string }> => {
+  const askSmartDate = useCallback(async (): Promise<{ text: string, dateStr: string, intent: any }> => {
     let resultDate = '';
     let parsedDateStr = '';
     while (isActiveRef.current) {
-      resultDate = await askUntilAnswered(
+      const res = await askUntilAnswered(
         resultDate === '' ? "ठीक है। अब कृपया अपनी अपॉइंटमेंट की तारीख बताएं।" : "कृपया कोई और दिन चुनें, जैसे कल या परसों।",
         "मुझे तारीख समझ नहीं आई। कृपया दोबारा बताएं।"
       );
-      if (!isActiveRef.current) return { text: '', dateStr: '' };
+      if (!isActiveRef.current) return { text: '', dateStr: '', intent: null };
+      if (res.intent) return { text: '', dateStr: '', intent: res.intent };
       
+      resultDate = res.val;
       const parsed = parseDate(resultDate);
       if (parsed.isSunday) {
         await speak("माफ़ कीजिएगा, रविवार को क्लिनिक बंद रहती है।");
@@ -237,7 +257,7 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
         break;
       }
     }
-    return { text: resultDate, dateStr: parsedDateStr };
+    return { text: resultDate, dateStr: parsedDateStr, intent: null };
   }, [askUntilAnswered, speak]);
 
   const parseTime = (text: string): string | null => {
@@ -261,19 +281,20 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
 
   const getAvailableSlots = (dateStr: string) => ALL_SLOTS.filter(s => !isSlotBooked(dateStr, s));
 
-  const askSmartTime = useCallback(async (dateStr: string): Promise<string> => {
+  const askSmartTime = useCallback(async (dateStr: string): Promise<{val: string, intent: any}> => {
     let resultTime = '';
     while (isActiveRef.current) {
-      resultTime = await askUntilAnswered(
+      const res = await askUntilAnswered(
         resultTime === '' ? "और कृपया अपना पसंदीदा समय बताएं।" : "कृपया कोई और समय बताएं।",
         "मुझे समय सुनाई नहीं दिया। कृपया दोबारा बताएं, जैसे — 10 बजे या 4 बजे।"
       );
-      if (!isActiveRef.current) return '';
+      if (!isActiveRef.current) return {val:'', intent:null};
+      if (res.intent) return { val: '', intent: res.intent };
       
+      resultTime = res.val;
       const parsedSlot = parseTime(resultTime);
       if (!parsedSlot) {
-        // Can't strictly parse it, just accept what they said
-        return resultTime;
+        return { val: resultTime, intent: null };
       }
       
       if (isSlotBooked(dateStr, parsedSlot)) {
@@ -281,56 +302,60 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
          const suggestions = available.slice(0, 3).join(', ');
          await speak(`माफ़ कीजिएगा, ${parsedSlot} का समय पहले से बुक है। इस दिन के लिए उपलब्ध समय हैं: ${suggestions}। आप इनमें से क्या चुनना चाहेंगे?`);
       } else {
-         return parsedSlot; // exact slot available
+         return { val: parsedSlot, intent: null };
       }
     }
-    return resultTime;
+    return { val: resultTime, intent: null };
   }, [askUntilAnswered, speak]);
 
-  // Linear async conversation flow — each step waits for user before proceeding
   const runFlow = useCallback(async () => {
-    // Collect all 4 fields
     let name = '', phone = '', date = '', time = '';
     let parsedDateStr = '';
+    let step = 'name';
 
-    // --- STEP 1: Name ---
-    name = await askUntilAnswered(
-      "नमस्ते! डॉ. रमेश चावलानी की क्लिनिक में कॉल करने के लिए धन्यवाद। कृपया अपना नाम बताएं।",
-      "मुझे आपका नाम सुनाई नहीं दिया। कृपया दोबारा बताएं।"
-    );
-    if (!isActiveRef.current) return;
+    while (isActiveRef.current && step !== 'done') {
+      setAgentState('PROCESSING'); await new Promise(r => setTimeout(r, 200));
 
-    setAgentState('PROCESSING'); await new Promise(r => setTimeout(r, 250));
-    if (!isActiveRef.current) return;
+      if (step === 'name') {
+        const res = await askUntilAnswered(
+           name ? "कृपया सही नाम बताएं।" : "नमस्ते! डॉ. रमेश चावलानी के क्लिनिक में आपका स्वागत है। आपका शुभ नाम क्या है?", 
+           "नाम सुनाई नहीं दिया, दोबारा बताएं।"
+        );
+        if (!isActiveRef.current) return;
+        if (res.intent && res.intent !== 'name') { step = res.intent; continue; }
+        
+        name = res.val;
+        step = !phone ? 'phone' : !date ? 'date' : !time ? 'time' : 'confirm';
+      } 
+      else if (step === 'phone') {
+        await speak("ठीक है। कृपया अपना 10 अंकों का मोबाइल नंबर बताएं।");
+        if (!isActiveRef.current) return;
 
-    // --- STEP 2: Phone (10-digit validated) ---
-    phone = await askPhone();
-    if (!isActiveRef.current) return;
+        const res = await askPhone();
+        if (!isActiveRef.current) return;
+        if (res.intent && res.intent !== 'phone') { step = res.intent; continue; }
 
-    setAgentState('PROCESSING'); await new Promise(r => setTimeout(r, 250));
-    if (!isActiveRef.current) return;
+        phone = res.val;
+        step = !date ? 'date' : !time ? 'time' : 'confirm';
+      }
+      else if (step === 'date') {
+        const res = await askSmartDate();
+        if (!isActiveRef.current) return;
+        if (res.intent && res.intent !== 'date') { step = res.intent; continue; }
 
-    // --- STEP 3: Date ---
-    const dRes = await askSmartDate();
-    if (!isActiveRef.current) return;
-    date = dRes.text;
-    parsedDateStr = dRes.dateStr;
+        date = res.text;
+        parsedDateStr = res.dateStr;
+        step = !time ? 'time' : 'confirm';
+      }
+      else if (step === 'time') {
+        const res = await askSmartTime(parsedDateStr);
+        if (!isActiveRef.current) return;
+        if (res.intent && res.intent !== 'time') { step = res.intent; continue; }
 
-    setAgentState('PROCESSING'); await new Promise(r => setTimeout(r, 250));
-    if (!isActiveRef.current) return;
-
-    // --- STEP 4: Time ---
-    time = await askSmartTime(parsedDateStr);
-    if (!isActiveRef.current) return;
-
-    // --- CONFIRMATION LOOP: repeat back, allow per-field correction ---
-    let confirmed = false;
-    let detailsSpoken = false;
-    while (!confirmed && isActiveRef.current) {
-      setAgentState('PROCESSING'); await new Promise(r => setTimeout(r, 350));
-      if (!isActiveRef.current) return;
-
-      if (!detailsSpoken) {
+        time = res.val;
+        step = 'confirm';
+      }
+      else if (step === 'confirm') {
         await speak(
           `ठीक है, मैं जानकारी दोहराता हूँ — ` +
           `नाम: ${name}। ` +
@@ -339,74 +364,50 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
           `समय: ${time}। ` +
           `क्या यह जानकारी सही है? हाँ कहें, या बताएं क्या बदलना है।`
         );
-        detailsSpoken = true;
-      } else {
-        await speak(`क्या यह जानकारी सही है? हाँ कहें, या वह जानकारी बताएं जिसे आप बदलना चाहते हैं।`);
-      }
-      if (!isActiveRef.current) return;
-
-      const reply = await listenOnce();
-      if (!isActiveRef.current) return;
-
-      if (!reply.trim()) {
-        continue; // They didn't answer, loop will ask the short question again
-      }
-
-      if (isYes(reply)) {
-        confirmed = true;
-      } else {
-        // Try to identify which field they want to change
-        const field = identifyField(reply);
-        setAgentState('PROCESSING'); await new Promise(r => setTimeout(r, 250));
         if (!isActiveRef.current) return;
 
-        if (field === 'name') {
-          name = await askUntilAnswered(
-            "ठीक है। कृपया सही नाम बताएं。",
-            "नाम सुनाई नहीं दिया, दोबारा बताएं।"
-          );
-          detailsSpoken = false; // Details changed, read them again next loop
-        } else if (field === 'phone') {
-          await speak("ठीक है। कृपया सही मोबाइल नंबर बताएं।");
+        let confirmed = false;
+        while (!confirmed && isActiveRef.current && step === 'confirm') {
+          const reply = await listenOnce();
           if (!isActiveRef.current) return;
-          phone = await askPhone();
-          detailsSpoken = false;
-        } else if (field === 'date') {
-          const dRes = await askSmartDate();
-          if (!isActiveRef.current) return;
-          date = dRes.text;
-          parsedDateStr = dRes.dateStr;
-          detailsSpoken = false;
-        } else if (field === 'time') {
-          time = await askSmartTime(parsedDateStr);
-          detailsSpoken = false;
-        } else {
-          // Couldn't identify field — ask them to specify
-          await speak("कृपया बताएं — नाम, नंबर, तारीख, या समय में से क्या बदलना है?");
+          if (!reply.trim()) continue;
+
+          const intent = checkGlobalIntent(reply) || identifyField(reply);
+          if (intent) {
+             step = intent;
+             break;
+          }
+
+          if (isYes(reply)) {
+            confirmed = true;
+          } else {
+            await speak("मुझे समझ नहीं आया। कृपया बताएं — नाम, नंबर, तारीख, या समय में से क्या बदलना है?");
+          }
         }
+        if (confirmed) step = 'book';
+      }
+      else if (step === 'book') {
+        patientInfoRef.current = `${name} - ${phone}`;
+        dateTimeInfoRef.current = `${date} - ${time}`;
+
+        await speak("बहुत अच्छा! आपकी अपॉइंटमेंट सफलतापूर्वक बुक हो गई है। डॉ. रमेश चावलानी आपसे जल्द मिलेंगे। धन्यवाद।");
         if (!isActiveRef.current) return;
+
+        onAppointmentBooked({
+          id: Math.random().toString(36).substring(7),
+          patientInfo: patientInfoRef.current,
+          dateTimeInfo: dateTimeInfoRef.current,
+          createdAt: new Date().toISOString()
+        });
+        setAgentState('COMPLETED');
+
+        await new Promise(r => setTimeout(r, 3000));
+        isActiveRef.current = false;
+        setAgentState('IDLE');
+        step = 'done';
       }
     }
-
-    // --- BOOK ---
-    patientInfoRef.current = `${name} - ${phone}`;
-    dateTimeInfoRef.current = `${date} - ${time}`;
-
-    await speak("बहुत अच्छा! आपकी अपॉइंटमेंट सफलतापूर्वक बुक हो गई है। डॉ. रमेश चावलानी आपसे जल्द मिलेंगे। धन्यवाद।");
-    if (!isActiveRef.current) return;
-
-    onAppointmentBooked({
-      id: Math.random().toString(36).substring(7),
-      patientInfo: patientInfoRef.current,
-      dateTimeInfo: dateTimeInfoRef.current,
-      createdAt: new Date().toISOString()
-    });
-    setAgentState('COMPLETED');
-
-    await new Promise(r => setTimeout(r, 3000));
-    isActiveRef.current = false;
-    setAgentState('IDLE');
-  }, [speak, listenOnce, askUntilAnswered, askPhone, askSmartDate, askSmartTime, isYes, onAppointmentBooked]);
+  }, [speak, listenOnce, askUntilAnswered, askPhone, askSmartDate, askSmartTime, isYes, checkGlobalIntent, onAppointmentBooked]);
 
   const startCall = useCallback(() => {
     if (isActiveRef.current) return; // prevent double-start
