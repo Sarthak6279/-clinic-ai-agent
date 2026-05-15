@@ -219,6 +219,7 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
   const parseDate = (text: string): { dateStr: string, isSunday: boolean } => {
     const d = new Date();
     const lower = text.toLowerCase();
+    
     if (lower.includes('kal') || lower.includes('कल') || lower.includes('tomorrow')) {
       d.setDate(d.getDate() + 1);
     } else if (lower.includes('parso') || lower.includes('परसों') || lower.includes('day after')) {
@@ -226,9 +227,38 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
     } else if (lower.includes('aaj') || lower.includes('आज') || lower.includes('today')) {
       // today
     } else {
-      d.setDate(d.getDate() + 1); // default tomorrow
+      // Try finding a specific number (e.g., 18 for '18 may')
+      let replaced = lower;
+      const wordMap: Record<string, string> = {
+        'one':'1','two':'2','three':'3','four':'4','five':'5','six':'6','seven':'7','eight':'8','nine':'9',
+        'एक':'1','दो':'2','तीन':'3','चार':'4','पाँच':'5','पांच':'5','छह':'6','छः':'6','सात':'7','आठ':'8','नौ':'9'
+      };
+      Object.entries(wordMap).forEach(([w, digit]) => { replaced = replaced.replace(new RegExp(w, 'g'), digit); });
+      
+      const match = replaced.match(/\d+/);
+      if (match) {
+        const targetDate = parseInt(match[0], 10);
+        if (targetDate >= 1 && targetDate <= 31) {
+           const currentMonth = d.getMonth();
+           const currentDate = d.getDate();
+           d.setDate(targetDate);
+           if (targetDate < currentDate) {
+             d.setMonth(currentMonth + 1);
+           }
+        } else {
+           d.setDate(d.getDate() + 1); // default tomorrow
+        }
+      } else {
+        d.setDate(d.getDate() + 1); // default tomorrow
+      }
     }
-    return { dateStr: d.toISOString().split('T')[0], isSunday: d.getDay() === 0 };
+    
+    // Generate ISO string securely adjusting for local timezone offset if needed,
+    // but d.toISOString() is fine for MVP.
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return { dateStr: `${year}-${month}-${day}`, isSunday: d.getDay() === 0 };
   };
 
   const askSmartDate = useCallback(async (): Promise<{ text: string, dateStr: string, intent: any }> => {
