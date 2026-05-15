@@ -134,7 +134,14 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
     const s = r.toLowerCase();
     return s.includes('हाँ') || s.includes('हां') || s.includes('han') || s.includes('ha') ||
       s.includes('yes') || s.includes('correct') || s.includes('theek') || s.includes('ठीक') ||
-      s.includes('sahi') || s.includes('bilkul') || s.includes('ok') || s.includes('okay');
+      s.includes('sahi') || s.includes('bilkul') || s.includes('ok') || s.includes('okay') || 
+      s.includes('book') || s.includes('kar do') || s.includes('kar de');
+  }, []);
+
+  const isNo = useCallback((r: string) => {
+    const s = r.toLowerCase();
+    return s.includes('नहीं') || s.includes('nahi') || s.includes('nhi') || s.includes('no') || 
+      s.includes('cancel') || s.includes('na ') || s.includes('mat');
   }, []);
 
   const checkGlobalIntent = useCallback((text: string): 'name'|'phone'|'date'|'time'|null => {
@@ -266,6 +273,21 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
     return null;
   };
 
+  const speakTimeInHindi = (timeStr: string) => {
+      const map: Record<string, string> = {
+        '9:00 AM': 'सुबह नौ बजे', '9:30 AM': 'सुबह साढ़े नौ बजे',
+        '10:00 AM': 'सुबह दस बजे', '10:30 AM': 'सुबह साढ़े दस बजे',
+        '11:00 AM': 'सुबह ग्यारह बजे', '11:30 AM': 'सुबह साढ़े ग्यारह बजे',
+        '12:00 PM': 'दोपहर बारह बजे', '12:30 PM': 'दोपहर साढ़े बारह बजे',
+        '1:00 PM': 'दोपहर एक बजे', '1:30 PM': 'दोपहर साढ़े एक बजे',
+        '2:00 PM': 'दोपहर दो बजे', '2:30 PM': 'दोपहर साढ़े दो बजे',
+        '5:00 PM': 'शाम पांच बजे', '5:30 PM': 'शाम साढ़े पांच बजे',
+        '6:00 PM': 'शाम छह बजे', '6:30 PM': 'शाम साढ़े छह बजे',
+        '7:00 PM': 'शाम सात बजे'
+      };
+      return map[timeStr] || timeStr;
+  };
+
   const getAvailableSlots = (dateStr: string) => ALL_SLOTS.filter(s => !isSlotBooked(dateStr, s));
 
   const askSmartTime = useCallback(async (dateStr: string): Promise<{val: string, intent: any}> => {
@@ -286,8 +308,8 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
       
       if (isSlotBooked(dateStr, parsedSlot)) {
          const available = getAvailableSlots(dateStr);
-         const suggestions = available.slice(0, 3).join(', ');
-         await speak(`माफ़ कीजिएगा, ${parsedSlot} का समय पहले से बुक है। इस दिन के लिए उपलब्ध समय हैं: ${suggestions}। आप इनमें से क्या चुनना चाहेंगे?`);
+         const suggestions = available.slice(0, 3).map(speakTimeInHindi).join(', ');
+         await speak(`माफ़ कीजिएगा, यह समय पहले से बुक है। इस दिन के लिए उपलब्ध समय हैं: ${suggestions}। आप इनमें से क्या चुनना चाहेंगे?`);
       } else {
          return { val: parsedSlot, intent: null };
       }
@@ -343,18 +365,12 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
         step = 'confirm';
       }
       else if (step === 'confirm') {
-        await speak(
-          `ठीक है, मैं जानकारी दोहराता हूँ — ` +
-          `नाम: ${name}। ` +
-          `मोबाइल नंबर: ${phone.split('').join(' ')}। ` +
-          `तारीख: ${date}। ` +
-          `समय: ${time}। ` +
-          `क्या यह जानकारी सही है? हाँ कहें, या बताएं क्या बदलना है।`
-        );
+        await speak(`क्या मैं आपकी अपॉइंटमेंट बुक कर दूँ?`);
         if (!isActiveRef.current) return;
 
         let confirmed = false;
-        while (!confirmed && isActiveRef.current && step === 'confirm') {
+        let cancelled = false;
+        while (!confirmed && !cancelled && isActiveRef.current && step === 'confirm') {
           const reply = await listenOnce();
           if (!isActiveRef.current) return;
           if (!reply.trim()) continue;
@@ -367,11 +383,22 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
 
           if (isYes(reply)) {
             confirmed = true;
+          } else if (isNo(reply)) {
+            cancelled = true;
           } else {
-            await speak("मुझे समझ नहीं आया। कृपया बताएं — नाम, नंबर, तारीख, या समय में से क्या बदलना है?");
+            await speak("कृपया 'हाँ' या 'नहीं' में जवाब दें। क्या मैं अपॉइंटमेंट बुक कर दूँ?");
           }
         }
         if (confirmed) step = 'book';
+        if (cancelled) step = 'cancel';
+      }
+      else if (step === 'cancel') {
+         await speak("ठीक है, मैंने आपकी अपॉइंटमेंट कैंसिल कर दी है। धन्यवाद।");
+         setAgentState('COMPLETED');
+         await new Promise(r => setTimeout(r, 3000));
+         isActiveRef.current = false;
+         setAgentState('IDLE');
+         step = 'done';
       }
       else if (step === 'book') {
         patientInfoRef.current = `${name} - ${phone}`;
@@ -394,7 +421,7 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
         step = 'done';
       }
     }
-  }, [speak, listenOnce, askUntilAnswered, askPhone, askSmartDate, askSmartTime, isYes, checkGlobalIntent, onAppointmentBooked]);
+  }, [speak, listenOnce, askUntilAnswered, askPhone, askSmartDate, askSmartTime, isYes, isNo, checkGlobalIntent, onAppointmentBooked]);
 
   const startCall = useCallback(() => {
     if (isActiveRef.current) return; 
