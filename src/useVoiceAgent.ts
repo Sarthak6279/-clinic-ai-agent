@@ -55,25 +55,22 @@ const SYSTEM_PROMPT = `आप डॉ. रमेश चावलानी के 
 - जब मरीज़ 'हाँ' कर दे, तो आपको "book_appointment" टूल को कॉल करना है। 
 - टूल कॉल करने से पहले मत कहें कि अपॉइंटमेंट बुक हो गई है।`;
 
-const TOOLS = [
-  {
-    type: "function",
-    function: {
-      name: "book_appointment",
-      description: "Call this tool ONLY when you have collected and confirmed the name, phone, date, and time.",
-      parameters: {
-        type: "object",
-        properties: {
-          name: { type: "string", description: "Patient Name" },
-          phone: { type: "string", description: "10 digit mobile number" },
-          date: { type: "string", description: "Format: YYYY-MM-DD or spoken date" },
-          time: { type: "string", description: "Time like 10:00 AM" }
-        },
-        required: ["name", "phone", "date", "time"]
-      }
+const TOOLS = [{
+  functionDeclarations: [{
+    name: "book_appointment",
+    description: "Call this tool ONLY when you have collected and confirmed the name, phone, date, and time.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        name: { type: "STRING", description: "Patient Name" },
+        phone: { type: "STRING", description: "10 digit mobile number" },
+        date: { type: "STRING", description: "Format: YYYY-MM-DD or spoken date" },
+        time: { type: "STRING", description: "Time like 10:00 AM" }
+      },
+      required: ["name", "phone", "date", "time"]
     }
-  }
-];
+  }]
+}];
 
 export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) => void) {
   const [agentState, setAgentState] = useState<AgentState>('IDLE');
@@ -165,9 +162,9 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
   }, []);
 
   const runConversationalFlow = useCallback(async () => {
-    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     if (!apiKey) {
-      alert("⚠️ OpenAI API Key is missing! Please set VITE_OPENAI_API_KEY in your .env file or Vercel dashboard.");
+      alert("⚠️ Google Gemini API Key is missing! Please set VITE_GEMINI_API_KEY in your Vercel dashboard.");
       isActiveRef.current = false;
       setAgentState('IDLE');
       return;
@@ -176,10 +173,10 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
     const todayDate = new Date().toISOString().split('T')[0];
     const contextPrompt = SYSTEM_PROMPT + `\n\nToday's Date is: ${todayDate}.`;
 
-    messagesRef.current = [{ role: 'system', content: contextPrompt }];
+    messagesRef.current = [];
     
     const initialGreeting = "नमस्ते! डॉ. रमेश चावलानी के क्लिनिक में आपका स्वागत है। मैं आपकी अपॉइंटमेंट बुक करने में कैसे मदद कर सकती हूँ?";
-    messagesRef.current.push({ role: 'assistant', content: initialGreeting });
+    messagesRef.current.push({ role: 'model', parts: [{ text: initialGreeting }] });
     
     await speak(initialGreeting);
 
@@ -190,33 +187,28 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
        if (!userText.trim()) continue;
 
        setAgentState('PROCESSING');
-       messagesRef.current.push({ role: 'user', content: userText });
+       messagesRef.current.push({ role: 'user', parts: [{ text: userText }] });
 
        try {
-         const response = await fetch('https://api.openai.com/v1/chat/completions', {
+         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
            method: 'POST',
-           headers: {
-             'Content-Type': 'application/json',
-             'Authorization': `Bearer ${apiKey}`
-           },
+           headers: { 'Content-Type': 'application/json' },
            body: JSON.stringify({
-             model: 'gpt-4o-mini',
-             messages: messagesRef.current,
-             tools: TOOLS,
-             tool_choice: 'auto'
+             systemInstruction: { parts: [{ text: contextPrompt }] },
+             contents: messagesRef.current,
+             tools: TOOLS
            })
          });
          
          const data = await response.json();
          if (data.error) throw new Error(data.error.message);
 
-         const msg = data.choices[0].message;
-         messagesRef.current.push(msg);
+         const candidate = data.candidates[0];
+         const msgPart = candidate.content.parts[0];
 
-         if (msg.tool_calls) {
-           const toolCall = msg.tool_calls[0];
-           if (toolCall.function.name === 'book_appointment') {
-             const args = JSON.parse(toolCall.function.arguments);
+         if (msgPart.functionCall) {
+           if (msgPart.functionCall.name === 'book_appointment') {
+             const args = msgPart.functionCall.args;
              
              await speak("बहुत अच्छा! आपकी अपॉइंटमेंट बुक हो गई है। डॉ. रमेश चावलानी आपसे जल्द मिलेंगे। धन्यवाद।");
              if (!isActiveRef.current) return;
@@ -236,8 +228,9 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
            }
          }
 
-         if (msg.content) {
-           await speak(msg.content);
+         if (msgPart.text) {
+           messagesRef.current.push({ role: 'model', parts: [{ text: msgPart.text }] });
+           await speak(msgPart.text);
          }
 
        } catch (err) {
