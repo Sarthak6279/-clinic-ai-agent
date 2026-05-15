@@ -380,12 +380,20 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
     try { recognitionRef.current?.abort(); } catch (_) {}
     window.speechSynthesis.cancel(); // clear stale queue
 
+    // Unlock audio for mobile browsers
+    const unlockUtter = new SpeechSynthesisUtterance('');
+    unlockUtter.volume = 0;
+    window.speechSynthesis.speak(unlockUtter);
+
     patientInfoRef.current = '';
     dateTimeInfoRef.current = '';
     setTranscript('');
     currentTranscriptRef.current = '';
 
-    runFlow();
+    // Delay runFlow slightly so cancel() doesn't kill the first utterance (Safari/Chrome bug)
+    setTimeout(() => {
+      if (isActiveRef.current) runFlow();
+    }, 100);
   }, [runFlow]);
 
   const endCall = useCallback(() => {
