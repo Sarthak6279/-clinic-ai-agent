@@ -175,14 +175,14 @@ export function useVoiceAgent(onAppointmentBooked: (appointment: Appointment) =>
     let digits = '';
     while (digits.length !== 10 && isActiveRef.current) {
       await speak(digits.length === 0
-        ? "धन्यवाद। अब कृपया अपना 10 अंकों का मोबाइल नंबर बताएं।"
-        : `आपने ${digits.length} अंक बताए। मोबाइल नंबर 10 अंकों का होना चाहिए। कृपया दोबारा पूरा नंबर बताएं।`
+        ? "जी शुक्रिया। ... अब बुकिंग कन्फर्म करने के लिए, क्या आप अपना दस अंकों का मोबाइल नंबर बता सकते हैं?"
+        : `माफ़ कीजिएगा, आपने जो नंबर बताया उसमें ${digits.length} अंक हैं, जबकि नंबर दस अंकों का होना चाहिए। ... कृपया एक बार फिर से पूरा नंबर बताएं।`
       );
       if (!isActiveRef.current) return '';
       const raw = await listenOnce();
       digits = extractDigits(raw);
       if (!digits && isActiveRef.current) {
-        await speak("मुझे नंबर सुनाई नहीं दिया। कृपया दोबारा बताएं।");
+        await speak("सॉरी, मुझे आवाज़ नहीं आई। ... कृपया अपना मोबाइल नंबर दोबारा बोलें।");
       }
     }
     return digits;
