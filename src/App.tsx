@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useVoiceAgent, type Appointment } from './useVoiceAgent';
-import { saveAppointment, generateId, type BookedSlot } from './store';
+import { saveAppointment, fetchAppointments, generateId, type BookedSlot } from './store';
 import AdminLogin from './AdminLogin';
 import AdminDashboard from './AdminDashboard';
 import BookingCalendar from './BookingCalendar';
@@ -466,6 +466,11 @@ export default function App() {
 
   const [isWidgetOpen, setIsWidgetOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+  // Prime Supabase cache on mount
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
 
   // Sync hash
   useEffect(() => {

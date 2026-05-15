@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { loadAppointments, updateAppointmentStatus, deleteAppointment, type BookedSlot } from './store';
+import { fetchAppointments, updateAppointmentStatus, deleteAppointment, type BookedSlot } from './store';
 
 function statusColor(s: BookedSlot['status']) {
   return s === 'confirmed' ? '#00a896' : s === 'completed' ? '#0e6d8c' : '#e74c3c';
@@ -15,7 +15,10 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [search, setSearch] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
 
-  const reload = () => setAppointments(loadAppointments());
+  const reload = async () => {
+    const data = await fetchAppointments();
+    setAppointments(data);
+  };
 
   useEffect(() => {
     reload();
