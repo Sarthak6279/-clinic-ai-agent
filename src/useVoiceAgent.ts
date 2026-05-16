@@ -170,27 +170,42 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
     }, {} as Record<string, string[]>);
     const bookedStr = Object.entries(bookedByDate).map(([d, times]) => `${d} (${times.join(', ')})`).join(' | ');
 
-    const systemPrompt = `Role: Dr. Chawalani's clinic receptionist.
-Language: Strictly Hindi (Devanagari).
-Goal: Book appointments sequentially.
+    // ✅ KEY FIX: Track collected data OUTSIDE message history so it survives truncation
+    const collected: { name?: string; phone?: string; date?: string; time?: string } = {};
 
-Strict Flow:
-1. Ask for Name. Wait for answer.
-2. Ask for 10-digit Mobile Number. Wait for answer.
-3. Ask for Date. Wait for answer.
-4. Ask for Time. Wait for answer.
-5. If the requested Date & Time is in the "Booked Slots" list below, apologize and ask for a different time.
-6. Once all 4 are collected, summarize Name, Number, Date, Time and ask: "क्या यह जानकारी सही है? हाँ या ना?"
-7. If user says No (ना), cancel the booking process.
-8. If user says Yes (हाँ) to confirm, output EXACTLY this JSON and NOTHING else:
-{"status": "BOOKED", "name": "...", "phone": "...", "date": "YYYY-MM-DD", "time": "HH:MM AM/PM"}
+    const buildSystemPrompt = () => {
+      // Build a summary of what we already know so AI never asks again
+      const alreadyKnown = [
+        collected.name   ? `Name already collected: "${collected.name}" — DO NOT ask for name again.` : '',
+        collected.phone  ? `Phone already collected: "${collected.phone}" — DO NOT ask for phone again.` : '',
+        collected.date   ? `Date already collected: "${collected.date}" — DO NOT ask for date again.` : '',
+        collected.time   ? `Time already collected: "${collected.time}" — DO NOT ask for time again.` : '',
+      ].filter(Boolean).join('\n');
+
+      return `Role: Dr. Chawalani's clinic receptionist.
+Language: Strictly Hindi (Devanagari).
+Goal: Book appointments. Ask ONLY for what is missing — never repeat a question for something already collected.
+
+ALREADY COLLECTED (do NOT ask again):
+${alreadyKnown || 'Nothing collected yet.'}
+
+Strict Flow (skip steps already done):
+1. If name missing → ask name.
+2. If phone missing → ask 10-digit mobile number.
+3. If date missing → ask preferred date.
+4. If time missing → ask preferred time. If the Date+Time is in Booked Slots below, apologize and ask for a different time ONLY — do not ask for name/phone/date again.
+5. Once all 4 collected → summarize and ask: "क्या यह जानकारी सही है? हाँ या ना?"
+6. If user says Yes (हाँ) → output EXACTLY this JSON and NOTHING else:
+{"status": "BOOKED", "name": "${collected.name || '...'}", "phone": "${collected.phone || '...'}", "date": "YYYY-MM-DD", "time": "HH:MM AM/PM"}
+7. If user says No (ना) → say sorry and end the call.
 
 Clinic Hours: Mon-Sat 10AM-2PM & 5PM-8PM. Closed Sundays.
 Today is ${today}.
 Booked Slots (DO NOT BOOK THESE): ${bookedStr || 'None'}`;
+    };
 
     let messages = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: buildSystemPrompt() },
       { role: 'assistant', content: "डॉक्टर चावलानी के क्लिनिक में कॉल करने के लिए धन्यवाद। मैं आपकी अपॉइंटमेंट बुक करने में मदद करुँगी। कृपया अपना नाम बताएं।" }
     ];
 
@@ -207,9 +222,12 @@ Booked Slots (DO NOT BOOK THESE): ${bookedStr || 'None'}`;
 
       messages.push({ role: 'user', content: userText });
       
-      // Keep 8 messages to remember context without exceeding 6K TPM limit
-      if (messages.length > 9) {
-        messages = [messages[0], ...messages.slice(-8)];
+      // Keep last 6 conversation turns but ALWAYS replace system prompt with fresh collected state
+      if (messages.length > 7) {
+        messages = [{ role: 'system', content: buildSystemPrompt() }, ...messages.slice(-6)];
+      } else {
+        // Always keep system prompt current with latest collected data
+        messages[0] = { role: 'system', content: buildSystemPrompt() };
       }
 
       setAgentState('PROCESSING');
@@ -218,7 +236,32 @@ Booked Slots (DO NOT BOOK THESE): ${bookedStr || 'None'}`;
         const aiResponse = await callGroq(messages);
         if (!isActiveRef.current) break;
 
-        const isBooked = /"status"\s*:\s*"BOOKED"/i.test(aiResponse);
+        // ✅ Extract collected data from the FULL JSON if AI outputs it (for partial/final booking)
+        try {
+          const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            if (parsed.name)  collected.name  = parsed.name;
+            if (parsed.phone) collected.phone = parsed.phone;
+            if (parsed.date)  collected.date  = parsed.date;
+            if (parsed.time)  collected.time  = parsed.time;
+          }
+        } catch { /* not JSON, that's fine */ }
+
+        // ✅ Also infer what the user just said based on context — update collected accordingly.
+        // If AI just asked for name (last AI msg asked for name) and user replied, store it.
+        const lastAiMsg = messages.filter(m => m.role === 'assistant').at(-1)?.content || '';
+        const nameQ  = /नाम/.test(lastAiMsg);
+        const phoneQ = /नंबर|मोबाइल|number/.test(lastAiMsg);
+        const dateQ  = /तारीख|date|दिनांक/.test(lastAiMsg);
+        const timeQ  = /समय|time|बजे/.test(lastAiMsg);
+        
+        if (nameQ  && !collected.name  && userText.trim().length > 1) collected.name  = userText.trim();
+        if (phoneQ && !collected.phone && /\d{5,}/.test(userText))     collected.phone = userText.trim();
+        if (dateQ  && !collected.date  && userText.trim().length > 2)  collected.date  = userText.trim();
+        if (timeQ  && !collected.time  && userText.trim().length > 1)  collected.time  = userText.trim();
+
+        const isBooked = /\"status\"\s*:\s*\"BOOKED\"/i.test(aiResponse);
         if (isBooked) {
           try {
             const jsonStr = aiResponse.substring(aiResponse.indexOf('{'), aiResponse.lastIndexOf('}') + 1);
