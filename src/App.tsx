@@ -17,7 +17,26 @@ import {
   TrendingUp,
   Users,
   Activity,
-  HeartPulse
+  HeartPulse,
+  Microscope,
+  Pill,
+  FlaskConical,
+  ClipboardList,
+  GraduationCap,
+  HandHeart,
+  Zap,
+  MessageSquare,
+  Clock,
+  BadgeCheck,
+  Building2,
+  MicOff,
+  Grid3x3,
+  Volume2,
+  UserPlus,
+  Video,
+  Contact2,
+  Banknote,
+  Timer
 } from 'lucide-react';
 
 const FAQS = [
@@ -29,12 +48,12 @@ const FAQS = [
 ];
 
 const SERVICES = [
-  { icon: "🫀", title: "Hepatology", desc: "Expert care for liver diseases including hepatitis, cirrhosis, fatty liver, and liver failure management." },
-  { icon: "🔬", title: "Gastroenterology", desc: "Comprehensive diagnosis and treatment of digestive system disorders, GI tract conditions, and endoscopy." },
-  { icon: "🩺", title: "General Consultation", desc: "Complete health check-ups, preventive care, and chronic disease management for adults." },
-  { icon: "💊", title: "GERD & Acidity", desc: "Specialized treatment for acid reflux, GERD, peptic ulcers, and related gastrointestinal conditions." },
-  { icon: "🧫", title: "Liver Function Tests", desc: "Interpretation and management of liver function test reports and advanced liver diagnostics." },
-  { icon: "📋", title: "IBS Management", desc: "Personalized treatment plans for Irritable Bowel Syndrome, Crohn's disease, and colitis." },
+  { Icon: HeartPulse, title: "Hepatology", desc: "Expert care for liver diseases including hepatitis, cirrhosis, fatty liver, and liver failure management." },
+  { Icon: Microscope, title: "Gastroenterology", desc: "Comprehensive diagnosis and treatment of digestive system disorders, GI tract conditions, and endoscopy." },
+  { Icon: Stethoscope, title: "General Consultation", desc: "Complete health check-ups, preventive care, and chronic disease management for adults." },
+  { Icon: Pill, title: "GERD & Acidity", desc: "Specialized treatment for acid reflux, GERD, peptic ulcers, and related gastrointestinal conditions." },
+  { Icon: FlaskConical, title: "Liver Function Tests", desc: "Interpretation and management of liver function test reports and advanced liver diagnostics." },
+  { Icon: ClipboardList, title: "IBS Management", desc: "Personalized treatment plans for Irritable Bowel Syndrome, Crohn's disease, and colitis." },
 ];
 
 const TESTIMONIALS = [
@@ -44,10 +63,10 @@ const TESTIMONIALS = [
 ];
 
 const TRUST_POINTS = [
-  { icon: "🛡️", title: "Verified Specialist", text: "12+ years in hepatology and gastroenterology care" },
-  { icon: "📍", title: "Prime Jabalpur Location", text: "In front of Reliance Fresh, Madan Mahal" },
-  { icon: "📞", title: "Fast Booking Assistance", text: "Call-first booking with quick response during clinic hours" },
-  { icon: "⭐", title: "Trusted by Patients", text: "4.0/5 rating from 650+ reviews" },
+  { Icon: BadgeCheck, title: "Verified Specialist", text: "12+ years in hepatology and gastroenterology care" },
+  { Icon: MapPin, title: "Prime Jabalpur Location", text: "In front of Reliance Fresh, Madan Mahal" },
+  { Icon: PhoneCall, title: "Fast Booking Assistance", text: "Call-first booking with quick response during clinic hours" },
+  { Icon: Award, title: "Trusted by Patients", text: "4.0/5 rating from 650+ reviews" },
 ];
 
 function useCountUp(target: number, duration = 1500) {
@@ -141,7 +160,7 @@ function Hero({ onBook }: { onBook: () => void }) {
         <div className="hero-img-blob2" />
         <img src="/doctor.png" alt="Dr. Romesh Chawalani" className="hero-img" />
         <div className="hero-badge">
-          <div className="hero-badge-icon">🏥</div>
+          <div className="hero-badge-icon"><Building2 size={22} color="#0EA5E9" /></div>
           <div>
             <div className="hero-badge-val">5,000+</div>
             <div className="hero-badge-lbl">Patients Treated</div>
@@ -165,7 +184,7 @@ function TrustStrip() {
         <div className="trust-grid">
           {TRUST_POINTS.map((point, idx) => (
             <div key={idx} className="trust-item">
-              <div className="trust-icon">{point.icon}</div>
+              <div className="trust-icon"><point.Icon size={22} strokeWidth={1.8} /></div>
               <div>
                 <div className="trust-title">{point.title}</div>
                 <div className="trust-text">{point.text}</div>
@@ -273,7 +292,7 @@ function Services() {
         <div className="services-grid">
           {SERVICES.map((s, i) => (
             <div key={i} className="service-card">
-              <div className="service-icon">{s.icon}</div>
+              <div className="service-icon"><s.Icon size={28} strokeWidth={1.6} /></div>
               <h3>{s.title}</h3>
               <p>{s.desc}</p>
             </div>
@@ -379,12 +398,12 @@ function Booking({ onBook, onOpenCalendar }: { onBook: () => void; onOpenCalenda
 function Why() {
   const ref = useFadeUp();
   const points = [
-    { icon: "🎓", title: "12+ Years of Expertise", desc: "Specialized training in Hepatology and Gastroenterology with hundreds of complex cases resolved." },
-    { icon: "🤝", title: "Patient-First Approach", desc: "Every patient receives personalized attention. Dr. Chawalani takes time to explain and listen." },
-    { icon: "⚡", title: "Fast Response", desc: "Responds in 5 minutes. Emergency consultations accommodated whenever possible." },
-    { icon: "🔬", title: "Advanced Diagnostics", desc: "Access to modern diagnostic equipment for accurate, timely liver and GI assessments." },
-    { icon: "💬", title: "Clear Communication", desc: "Medical jargon-free explanations. You'll always understand your diagnosis and treatment plan." },
-    { icon: "📍", title: "Conveniently Located", desc: "Clinic situated in Madan Mahal, Jabalpur — easily accessible by public and private transport." },
+    { Icon: GraduationCap, title: "12+ Years of Expertise", desc: "Specialized training in Hepatology and Gastroenterology with hundreds of complex cases resolved." },
+    { Icon: HandHeart, title: "Patient-First Approach", desc: "Every patient receives personalized attention. Dr. Chawalani takes time to explain and listen." },
+    { Icon: Zap, title: "Fast Response", desc: "Responds in 5 minutes. Emergency consultations accommodated whenever possible." },
+    { Icon: Microscope, title: "Advanced Diagnostics", desc: "Access to modern diagnostic equipment for accurate, timely liver and GI assessments." },
+    { Icon: MessageSquare, title: "Clear Communication", desc: "Medical jargon-free explanations. You'll always understand your diagnosis and treatment plan." },
+    { Icon: MapPin, title: "Conveniently Located", desc: "Clinic situated in Madan Mahal, Jabalpur — easily accessible by public and private transport." },
   ];
   return (
     <section className="why-section">
@@ -397,7 +416,7 @@ function Why() {
         <div className="why-grid">
           {points.map((p, i) => (
             <div key={i} className="why-card">
-              <div className="why-icon">{p.icon}</div>
+              <div className="why-icon"><p.Icon size={24} strokeWidth={1.6} /></div>
               <div><h4>{p.title}</h4><p>{p.desc}</p></div>
             </div>
           ))}
@@ -471,18 +490,18 @@ function Contact() {
         <div className="contact-grid" style={{ marginTop: '2rem' }}>
           <div className="contact-info">
             {[
-              { icon: "📍", label: "Address", val: "In Front of Reliance Fresh, Madan Mahal, Jabalpur, MP" },
-              { icon: "📞", label: "Phone", val: "07383371238" },
-              { icon: "🕐", label: "Timings", val: "Mon–Sat: 10AM–2PM & 5PM–8PM" },
-              { icon: "💰", label: "Consultation Fee", val: "₹400 (Clinic) · ₹300 (Online)" },
-               { icon: "⚡", label: "Response Time", val: "Approx. 5 minutes during clinic hours" },
+              { Icon: MapPin, label: "Address", val: "In Front of Reliance Fresh, Madan Mahal, Jabalpur, MP" },
+              { Icon: PhoneCall, label: "Phone", val: "07383371238" },
+              { Icon: Clock, label: "Timings", val: "Mon–Sat: 10AM–2PM & 5PM–8PM" },
+              { Icon: Banknote, label: "Consultation Fee", val: "₹400 (Clinic) · ₹300 (Online)" },
+              { Icon: Timer, label: "Response Time", val: "Approx. 5 minutes during clinic hours" },
             ].map((c, i) => (
               <div key={i} className="contact-item">
-                <div className="contact-item-icon">{c.icon}</div>
+                <div className="contact-item-icon"><c.Icon size={18} strokeWidth={1.8} /></div>
                 <div><div className="contact-item-label">{c.label}</div><div className="contact-item-val">{c.val}</div></div>
               </div>
             ))}
-            <div className="map-placeholder">📍 In Front of Reliance Fresh, Madan Mahal, Jabalpur</div>
+            <div className="map-placeholder"><MapPin size={15} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />In Front of Reliance Fresh, Madan Mahal, Jabalpur</div>
           </div>
           <div className="booking-card">
             <div style={{ fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem' }}>Send an Enquiry</div>
@@ -505,7 +524,7 @@ function Footer() {
       <div className="container">
         <div className="footer-grid">
           <div>
-            <div className="footer-brand">🩺 Dr. Romesh Chawalani</div>
+            <div className="footer-brand"><Stethoscope size={18} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }} />Dr. Romesh Chawalani</div>
             <p className="footer-desc">Hepatologist & Gastroenterologist with 12+ years of experience. Dedicated to delivering patient-centered liver and digestive care in Jabalpur.</p>
           </div>
           <div>
@@ -521,10 +540,10 @@ function Footer() {
           <div>
             <h4>Contact</h4>
             <div className="footer-links">
-              <span className="footer-link">📞 07383371238</span>
-              <span className="footer-link">📍 Madan Mahal, Jabalpur</span>
-              <span className="footer-link">🕐 Mon–Sat: 10AM–8PM</span>
-              <span className="footer-link">💰 Consult: ₹400</span>
+              <span className="footer-link"><PhoneCall size={13} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />07383371238</span>
+              <span className="footer-link"><MapPin size={13} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />Madan Mahal, Jabalpur</span>
+              <span className="footer-link"><Clock size={13} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />Mon–Sat: 10AM–8PM</span>
+              <span className="footer-link"><Banknote size={13} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />Consult: ₹400</span>
             </div>
           </div>
         </div>
@@ -613,34 +632,34 @@ function VoiceWidget({
         <div className="call-controls">
           <div className="call-grid">
             <div className="call-control-item">
-              <div className="call-control-btn">🔇</div>
+              <div className="call-control-btn"><MicOff size={20} /></div>
               <span>Mute</span>
             </div>
             <div className="call-control-item">
-              <div className="call-control-btn">⌨️</div>
+              <div className="call-control-btn"><Grid3x3 size={20} /></div>
               <span>Keypad</span>
             </div>
             <div className="call-control-item">
-              <div className="call-control-btn">🔊</div>
+              <div className="call-control-btn"><Volume2 size={20} /></div>
               <span>Speaker</span>
             </div>
             <div className="call-control-item">
-              <div className="call-control-btn">➕</div>
+              <div className="call-control-btn"><UserPlus size={20} /></div>
               <span>Add Call</span>
             </div>
             <div className="call-control-item">
-              <div className="call-control-btn">📹</div>
+              <div className="call-control-btn"><Video size={20} /></div>
               <span>FaceTime</span>
             </div>
             <div className="call-control-item">
-              <div className="call-control-btn">👤</div>
+              <div className="call-control-btn"><Contact2 size={20} /></div>
               <span>Contacts</span>
             </div>
           </div>
 
           <div className="call-actions">
             <button className="call-hangup" onClick={onClose}>
-              <div className="call-hangup-icon">📞</div>
+              <div className="call-hangup-icon"><PhoneCall size={26} /></div>
             </button>
           </div>
         </div>
@@ -744,7 +763,7 @@ export default function App() {
 
       <div className="floating-voice">
         <button className="floating-voice-btn" onClick={handleOpenCall} title="Start call booking">
-          <span>📞</span>
+          <PhoneCall size={22} />
         </button>
         <span className="floating-voice-label">Available now</span>
       </div>
