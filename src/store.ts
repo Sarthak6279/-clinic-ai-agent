@@ -44,7 +44,7 @@ export async function fetchAppointments(): Promise<BookedSlot[]> {
   }
   if (data) {
     cachedAppointments = data;
-    window.dispatchEvent(new Event('appointments-updated-local'));
+    window.dispatchEvent(new Event('appointments-updated'));
     return data;
   }
   return cachedAppointments;
@@ -62,7 +62,7 @@ export async function saveAppointment(slot: BookedSlot): Promise<void> {
 
   // Update memory cache
   cachedAppointments = [slot, ...cachedAppointments.filter(a => a.id !== slot.id)].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  window.dispatchEvent(new Event('appointments-updated-local'));
+  window.dispatchEvent(new Event('appointments-updated'));
 }
 
 export async function updateAppointmentStatus(id: string, status: BookedSlot['status']): Promise<void> {
