@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { fetchAppointments, getLocalAppointments, isSlotBooked } from './store';
 
 export interface Appointment {
