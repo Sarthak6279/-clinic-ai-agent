@@ -4,7 +4,6 @@ import { saveAppointment, fetchAppointments, generateId, type BookedSlot } from 
 import AdminLogin from './AdminLogin';
 import AdminDashboard from './AdminDashboard';
 import BookingCalendar from './BookingCalendar';
-import { Menu, PhoneCall, X } from 'lucide-react';
 
 const FAQS = [
   { q: "What are the consultation timings?", a: "Dr. Chawalani is available Monday to Saturday, 10:00 AM – 2:00 PM and 5:00 PM – 8:00 PM. Sunday by appointment only." },
@@ -68,41 +67,39 @@ function useFadeUp() {
 function Nav({ onBook }: { onBook: () => void }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const closeMenu = () => setMobileOpen(false);
-  const handleBookClick = () => {
-    closeMenu();
-    onBook();
-  };
 
   return (
+    <>
     <nav className="nav">
       <div className="nav-brand">
-        <div className="nav-brand-icon">+</div>
+        <div className="nav-brand-icon">✚</div>
         <div>
           <div className="nav-brand-text">Dr. Romesh Chawalani<span>Hepatologist &amp; Gastroenterologist</span></div>
         </div>
       </div>
-      <button className="nav-menu-btn" onClick={() => setMobileOpen(v => !v)} aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}>
-        {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-      </button>
       <div className="nav-links">
         <a className="nav-link" href="#about">About</a>
         <a className="nav-link" href="#services">Services</a>
         <a className="nav-link" href="#booking">Book</a>
         <a className="nav-link" href="#testimonials">Reviews</a>
         <a className="nav-link" href="#contact">Contact</a>
-        <a className="nav-link" href="#admin" style={{ color: 'var(--text-muted)', fontSize: '0.82rem', borderLeft: '1px solid var(--border)', paddingLeft: '1.5rem' }}>Doctor Portal</a>
-        <button className="nav-cta" onClick={onBook}><PhoneCall size={16} /> Call to Book</button>
+        <a className="nav-link" href="#admin" style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.8rem', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '1.5rem' }}>Doctor Portal</a>
+        <button className="nav-cta" onClick={onBook}>📞 Book Appointment</button>
       </div>
-      <div className={`nav-mobile-menu ${mobileOpen ? 'open' : ''}`}>
-        <a className="nav-mobile-link" href="#about" onClick={closeMenu}>About</a>
-        <a className="nav-mobile-link" href="#services" onClick={closeMenu}>Services</a>
-        <a className="nav-mobile-link" href="#booking" onClick={closeMenu}>Book</a>
-        <a className="nav-mobile-link" href="#testimonials" onClick={closeMenu}>Reviews</a>
-        <a className="nav-mobile-link" href="#contact" onClick={closeMenu}>Contact</a>
-        <a className="nav-mobile-link" href="#admin" onClick={closeMenu}>Doctor Portal</a>
-        <button className="nav-mobile-cta" onClick={handleBookClick}><PhoneCall size={16} /> Start Call Booking</button>
-      </div>
+      <button className="nav-hamburger" onClick={() => setMobileOpen(v => !v)} aria-label="Toggle menu">
+        {mobileOpen ? '✕' : '☰'}
+      </button>
     </nav>
+    <div className={`mobile-menu ${mobileOpen ? 'open' : ''}`}>
+      <a className="nav-link" href="#about" onClick={closeMenu}>About</a>
+      <a className="nav-link" href="#services" onClick={closeMenu}>Services</a>
+      <a className="nav-link" href="#booking" onClick={closeMenu}>Book</a>
+      <a className="nav-link" href="#testimonials" onClick={closeMenu}>Reviews</a>
+      <a className="nav-link" href="#contact" onClick={closeMenu}>Contact</a>
+      <a className="nav-link" href="#admin" onClick={closeMenu} style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem' }}>Doctor Portal</a>
+      <button className="nav-cta" onClick={() => { closeMenu(); onBook(); }} style={{ width: '100%', justifyContent: 'center', marginTop: '0.5rem' }}>📞 Book Appointment</button>
+    </div>
+    </>
   );
 }
 
@@ -125,24 +122,22 @@ function Hero({ onBook }: { onBook: () => void }) {
         </div>
       </div>
       <div className="hero-right">
-          <div className="hero-card">
-            <div className="hero-card-header"><div className="hero-card-icon teal">📊</div><span className="hero-card-badge">Today at Clinic</span></div>
-            <div className="hero-card-val">5,000+</div>
-            <div className="hero-card-label">Consultations Completed</div>
+        <div className="hero-img-blob" />
+        <div className="hero-img-blob2" />
+        <img src="/doctor.png" alt="Dr. Romesh Chawalani" className="hero-img" />
+        <div className="hero-badge">
+          <div className="hero-badge-icon">🏥</div>
+          <div>
+            <div className="hero-badge-val">5,000+</div>
+            <div className="hero-badge-lbl">Patients Treated</div>
           </div>
-          <div className="hero-card">
-            <div className="hero-card-header"><div className="hero-card-icon green">📅</div><span className="hero-card-badge">Consultation Queue</span></div>
-            <div className="hero-card-mini">
-              <div className="hero-card-avatar">R</div>
-              <div><div className="hero-card-info-name">11:30 AM — Confirmed</div><div className="hero-card-info-time">Liver & GI follow-up</div></div>
-              <div className="hero-card-status" />
-            </div>
+        </div>
+        <div className="hero-badge2">
+          <div className="hero-badge2-inner">
+            <div className="hero-badge2-dot" />
+            <div className="hero-badge2-text">Now Accepting Patients</div>
           </div>
-          <div className="hero-card">
-            <div className="hero-card-header"><div className="hero-card-icon blue">⭐</div><span className="hero-card-badge">Care Quality</span></div>
-            <div className="hero-card-val">4.0 / 5.0</div>
-            <div className="hero-card-label">Patient Satisfaction</div>
-          </div>
+        </div>
       </div>
     </section>
   );
@@ -278,7 +273,7 @@ function Booking({ onBook, onOpenCalendar }: { onBook: () => void; onOpenCalenda
             <p className="section-desc">Choose from 22 daily slots (30 min each, 9 AM – 7:30 PM). Book via Voice AI or select a slot from the calendar.</p>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
               <button className="btn-primary" onClick={onOpenCalendar}>Open Booking Calendar</button>
-              <button className="btn-secondary" onClick={onBook}><PhoneCall size={16} /> Call Assistant Booking</button>
+              <button className="btn-secondary" onClick={onBook}>📞 Call Assistant Booking</button>
             </div>
             <div style={{ background: 'var(--surface2)', borderRadius: 'var(--radius)', padding: '1.25rem', border: '1px solid var(--border)' }}>
               <div style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: '0.4rem', fontSize: '0.95rem' }}>Clinic Hours</div>
@@ -634,8 +629,7 @@ export default function App() {
 
       <div className="floating-voice">
         <button className="floating-voice-btn" onClick={handleOpenCall} title="Start call booking">
-          <PhoneCall size={18} />
-          <span>Call to Book</span>
+          <span>📞</span>
         </button>
         <span className="floating-voice-label">Available now</span>
       </div>
