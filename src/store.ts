@@ -28,36 +28,26 @@ export function generateSlots(): string[] {
 
 export const ALL_SLOTS = generateSlots();
 
-const KEY = 'dr_romesh_appointments';
-
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 export const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
-export function getLocalAppointments(): BookedSlot[] {
-  try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; }
-}
-
-let cachedAppointments: BookedSlot[] = getLocalAppointments();
+let cachedAppointments: BookedSlot[] = [];
 
 export async function fetchAppointments(): Promise<BookedSlot[]> {
-  if (supabase) {
-    const { data, error } = await supabase.from('appointments').select('*').order('createdAt', { ascending: false });
-    if (error) {
-      console.error("Supabase fetch error:", error);
-      return getLocalAppointments();
-    }
-    if (data) {
-      const local = getLocalAppointments();
-      const dbIds = new Set(data.map(d => d.id));
-      const localOnly = local.filter(l => !dbIds.has(l.id));
-      
-      cachedAppointments = [...localOnly, ...data].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      localStorage.setItem(KEY, JSON.stringify(cachedAppointments));
-      return cachedAppointments;
-    }
+  if (!supabase) return cachedAppointments;
+  
+  const { data, error } = await supabase.from('appointments').select('*').order('createdAt', { ascending: false });
+  if (error) {
+    console.error("Supabase fetch error:", error);
+    return cachedAppointments;
   }
-  return getLocalAppointments();
+  if (data) {
+    cachedAppointments = data;
+    window.dispatchEvent(new Event('appointments-updated-local'));
+    return data;
+  }
+  return cachedAppointments;
 }
 
 export async function saveAppointment(slot: BookedSlot): Promise<void> {
@@ -65,14 +55,13 @@ export async function saveAppointment(slot: BookedSlot): Promise<void> {
     const { error } = await supabase.from('appointments').insert([slot]);
     if (error) {
       console.error("Supabase insert error:", error);
+      alert("Failed to save to cloud database. Please check Supabase configuration.");
+      return; // Do not save locally if cloud fails!
     }
   }
 
-  // Update local cache
-  cachedAppointments = [slot, ...cachedAppointments.filter(a => a.id !== slot.id)];
-  localStorage.setItem(KEY, JSON.stringify(cachedAppointments));
-  
-  // Don't trigger fetch if we know it might wipe our local insertion
+  // Update memory cache
+  cachedAppointments = [slot, ...cachedAppointments.filter(a => a.id !== slot.id)].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   window.dispatchEvent(new Event('appointments-updated-local'));
 }
 
@@ -83,7 +72,6 @@ export async function updateAppointmentStatus(id: string, status: BookedSlot['st
   }
 
   cachedAppointments = cachedAppointments.map(a => a.id === id ? { ...a, status } : a);
-  localStorage.setItem(KEY, JSON.stringify(cachedAppointments));
   window.dispatchEvent(new Event('appointments-updated'));
 }
 
@@ -94,12 +82,16 @@ export async function deleteAppointment(id: string): Promise<void> {
   }
 
   cachedAppointments = cachedAppointments.filter(a => a.id !== id);
-  localStorage.setItem(KEY, JSON.stringify(cachedAppointments));
   window.dispatchEvent(new Event('appointments-updated'));
 }
 
 export function isSlotBooked(date: string, time: string): boolean {
   return cachedAppointments.some(a => a.date === date && a.time === time && a.status !== 'cancelled');
+}
+
+// Ensure anyone trying to read local cache just gets the memory array
+export function getLocalAppointments(): BookedSlot[] {
+  return cachedAppointments;
 }
 
 export function generateId(): string {
