@@ -39,7 +39,7 @@ export default function AdminLogin({ onLogin }: { onLogin: () => void }) {
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#0a4d68', marginBottom: '0.4rem' }}>Username</label>
               <input
                 value={username} onChange={e => setUsername(e.target.value)}
-                placeholder="dr.romesh"
+                placeholder="Username"
                 style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: 12, border: '1.5px solid rgba(5,191,219,0.3)', fontFamily: 'inherit', fontSize: '0.95rem', outline: 'none', color: '#1a2332', boxSizing: 'border-box' }}
               />
             </div>
@@ -64,9 +64,11 @@ export default function AdminLogin({ onLogin }: { onLogin: () => void }) {
             </button>
           </form>
 
-          <div style={{ textAlign: 'center', marginTop: '1.5rem', padding: '1rem', background: '#f8fbfc', borderRadius: 12, fontSize: '0.8rem', color: '#6b7f8e' }}>
-            🔒 Restricted access — Authorized personnel only.<br />
-            <span style={{ color: '#05bfdb', fontWeight: 600 }}>Demo: dr.romesh / clinic2025</span>
+          <div style={{ textAlign: 'center', marginTop: '1.5rem', padding: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
+              <Shield size={16} color="#05bfdb" />
+              <span style={{ color: '#05bfdb', fontWeight: 600 }}>Secure Admin Access</span>
+            </div>
           </div>
         </div>
 

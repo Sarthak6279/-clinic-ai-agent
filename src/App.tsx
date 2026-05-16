@@ -623,9 +623,7 @@ function VoiceWidget({
           <div className="call-status-label">
             {agentState === 'LISTENING' ? 'Listening...' : agentState === 'SPEAKING' ? 'Speaking...' : agentState === 'PROCESSING' ? 'Processing...' : ''}
           </div>
-          <div className="call-transcript">
-            {transcript || (agentState === 'LISTENING' ? 'Please tell your name...' : '...')}
-          </div>
+          {/* Transcript hidden as per user request */}
         </div>
 
         {/* Controls */}
