@@ -15,9 +15,13 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [search, setSearch] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
 
+  const [refreshing, setRefreshing] = useState(false);
+
   const reload = async () => {
+    setRefreshing(true);
     const data = await fetchAppointments();
     setAppointments(data);
+    setRefreshing(false);
   };
 
   useEffect(() => {
@@ -92,6 +96,11 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             </button>
           ))}
           {selectedDate && <button onClick={() => setSelectedDate('')} style={{ padding: '0.5rem 1rem', borderRadius: 20, border: '1.5px solid #e74c3c', color: '#e74c3c', background: 'white', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.82rem', fontWeight: 600 }}>✕ Clear Date</button>}
+          
+          <div style={{ flex: 1 }} />
+          <button onClick={reload} disabled={refreshing} style={{ padding: '0.65rem 1.25rem', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#0a4d68,#05bfdb)', color: 'white', fontWeight: 600, cursor: refreshing ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'opacity 0.2s', opacity: refreshing ? 0.7 : 1 }}>
+            {refreshing ? '⏳ Refreshing...' : '🔄 Refresh Data'}
+          </button>
         </div>
 
         {/* Appointments Table */}
