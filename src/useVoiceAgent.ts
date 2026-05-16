@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { getLocalAppointments } from './store';
+import { useState, useRef, useCallback } from 'react';
+import { getLocalAppointments, isSlotBooked } from './store';
 
 export interface Appointment {
   id: string;
@@ -18,6 +18,14 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesis>(window.speechSynthesis);
 
+  // Persistent storage for collected data during the call
+  const collectedRef = useRef({
+    name: '',
+    phone: '',
+    date: '',
+    time: ''
+  });
+
   const stopAll = useCallback(() => {
     isActiveRef.current = false;
     if (recognitionRef.current) {
@@ -28,6 +36,8 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
     }
     setAgentState('IDLE');
     setTranscript('');
+    // Clear data for next call
+    collectedRef.current = { name: '', phone: '', date: '', time: '' };
   }, []);
 
   const speak = useCallback((text: string): Promise<void> => {
@@ -44,8 +54,8 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'hi-IN';
-      utterance.rate = 0.95;
-      utterance.pitch = 1.05;
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
 
       const voices = synthRef.current.getVoices();
       const hindiVoice = voices.find(v => v.lang.includes('hi')) || voices.find(v => v.lang.includes('en-IN'));
@@ -80,7 +90,7 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
       recognitionRef.current = recognition;
       recognition.lang = 'hi-IN';
       recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
+      recognition.continuous = false;
 
       let timer: any;
 
@@ -92,23 +102,19 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
       };
 
       recognition.onstart = () => {
-        if (!isActiveRef.current) {
-          recognition.stop();
-          return;
-        }
         setAgentState('LISTENING');
         setTranscript('');
-        
+        // Fail-safe timeout
         timer = setTimeout(() => {
-          recognition.stop();
-        }, 15000); // 15s max listening
+          try { recognition.stop(); } catch(e) {}
+          resolve('');
+        }, 8000);
       };
 
       recognition.onresult = (event: any) => {
         cleanup();
         const text = event.results[0][0].transcript;
         setTranscript(text);
-        setAgentState('PROCESSING');
         resolve(text);
       };
 
@@ -131,82 +137,76 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
   }, []);
 
   const callGroq = async (messages: any[]) => {
-    const key = import.meta.env.VITE_GROQ_API_KEY;
-    if (!key) throw new Error("Groq API key not found");
-
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
+    const API_KEY = import.meta.env.VITE_GROQ_API_KEY;
+    if (!API_KEY) throw new Error("Groq API Key missing");
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${key}`
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${API_KEY}`
       },
       body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
-        messages: messages,
-        temperature: 0.5,
-        max_tokens: 150
+        model: "llama-3.3-70b-versatile",
+        messages,
+        temperature: 0.3,
+        max_tokens: 500,
+        response_format: { type: "text" }
       })
     });
     
-    if (!res.ok) {
-      const errBody = await res.text();
-      console.error("Groq API failed:", errBody);
-      throw new Error("Groq API Error");
-    }
+    if (!res.ok) throw new Error("Groq API Error");
     const data = await res.json();
     return data.choices[0].message.content;
   };
 
   const runConversationalFlow = useCallback(async () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
     
-    const appts = getLocalAppointments();
-    const bookedByDate = appts.reduce((acc, curr) => {
-      if (curr.status !== 'cancelled') {
-        if (!acc[curr.date]) acc[curr.date] = [];
-        acc[curr.date].push(curr.time);
-      }
-      return acc;
-    }, {} as Record<string, string[]>);
-    const bookedStr = Object.entries(bookedByDate).map(([d, times]) => `${d} (${times.join(', ')})`).join(' | ');
-
-    // ✅ KEY FIX: Track collected data OUTSIDE message history so it survives truncation
-    const collected: { name?: string; phone?: string; date?: string; time?: string } = {};
-
     const buildSystemPrompt = () => {
-      // Build a summary of what we already know so AI never asks again
-      const alreadyKnown = [
-        collected.name   ? `Name already collected: "${collected.name}" — DO NOT ask for name again.` : '',
-        collected.phone  ? `Phone already collected: "${collected.phone}" — DO NOT ask for phone again.` : '',
-        collected.date   ? `Date already collected: "${collected.date}" — DO NOT ask for date again.` : '',
-        collected.time   ? `Time already collected: "${collected.time}" — DO NOT ask for time again.` : '',
-      ].filter(Boolean).join('\n');
+      const c = collectedRef.current;
+      
+      // Proactive availability check to guide the AI
+      let availabilityInfo = "Available: Yes";
+      if (c.date && c.time) {
+        const isSun = new Date(c.date).getDay() === 0;
+        const isBooked = isSlotBooked(c.date, c.time);
+        if (isSun) availabilityInfo = "Available: NO (Clinic closed on Sunday)";
+        else if (isBooked) availabilityInfo = "Available: NO (Slot already booked)";
+      }
 
-      return `Role: Dr. Chawalani's clinic receptionist.
-Language: Strictly Hindi (Devanagari).
-Goal: Book appointments. Ask ONLY for what is missing — never repeat a question for something already collected.
+      const appointments = getLocalAppointments();
+      const bookedList = appointments
+        .filter(a => a.status !== 'cancelled')
+        .map(a => `${a.date} at ${a.time}`)
+        .join(', ') || 'None';
 
-ALREADY COLLECTED (do NOT ask again):
-${alreadyKnown || 'Nothing collected yet.'}
+      return `Role: Dr. Romesh Chawalani's clinic receptionist (Hindi).
+Language: Hindi (Devanagari).
+Instructions:
+1. Ask for: Name -> Mobile (10 digits) -> Date -> Time.
+2. If data is in "CURRENTLY COLLECTED", DO NOT ask for it again.
+3. Sunday is CLOSED. If user picks Sunday, tell them and ask for another day.
+4. Check "BOOKED SLOTS" below. If user picks a booked slot, say "यह समय पहले से बुक है" and ask for another time.
+5. Once all 4 fields are collected and valid, summarize and ask for confirmation.
+6. If confirmed (हाँ), output EXACTLY this JSON and nothing else: {"status": "BOOKED", "name": "...", "phone": "...", "date": "YYYY-MM-DD", "time": "HH:MM AM/PM"}
 
-Strict Flow (skip steps already done):
-1. If name missing → ask name.
-2. If phone missing → ask 10-digit mobile number.
-3. If date missing → ask preferred date.
-4. If time missing → ask preferred time. If the Date+Time is in Booked Slots below, apologize and ask for a different time ONLY — do not ask for name/phone/date again.
-5. Once all 4 collected → summarize and ask: "क्या यह जानकारी सही है? हाँ या ना?"
-6. If user says Yes (हाँ) → output EXACTLY this JSON and NOTHING else:
-{"status": "BOOKED", "name": "${collected.name || '...'}", "phone": "${collected.phone || '...'}", "date": "YYYY-MM-DD", "time": "HH:MM AM/PM"}
-7. If user says No (ना) → say sorry and end the call.
+CURRENTLY COLLECTED:
+- Name: ${c.name || 'MISSING'}
+- Phone: ${c.phone || 'MISSING'}
+- Date: ${c.date || 'MISSING'}
+- Time: ${c.time || 'MISSING'}
+- ${availabilityInfo}
 
-Clinic Hours: Mon-Sat 10AM-2PM & 5PM-8PM. Closed Sundays.
-Today is ${today}.
-Booked Slots (DO NOT BOOK THESE): ${bookedStr || 'None'}`;
+TODAY'S DATE: ${todayStr}
+BOOKED SLOTS: ${bookedList}
+
+Note: If the user says "Next Monday" or similar, calculate the date correctly. Always provide the date in YYYY-MM-DD format in the final JSON.`;
     };
 
     let messages = [
       { role: 'system', content: buildSystemPrompt() },
-      { role: 'assistant', content: "डॉक्टर चावलानी के क्लिनिक में कॉल करने के लिए धन्यवाद। मैं आपकी अपॉइंटमेंट बुक करने में मदद करुँगी। कृपया अपना नाम बताएं।" }
+      { role: 'assistant', content: "नमस्ते, डॉ. चावलानी के क्लिनिक में आपका स्वागत है। मैं आपकी अपॉइंटमेंट बुक करने में मदद करूँगी। आपका नाम क्या है?" }
     ];
 
     await speak(messages[1].content);
@@ -216,18 +216,18 @@ Booked Slots (DO NOT BOOK THESE): ${bookedStr || 'None'}`;
       if (!isActiveRef.current) break;
       
       if (!userText.trim()) {
-        await speak("माफ़ कीजिएगा, आवाज़ नहीं आई। कृपया फिर से बोलें?");
+        await speak("माफ़ कीजिये, मुझे सुनाई नहीं दिया। क्या आप कृपया फिर से बोलेंगे?");
         continue;
       }
 
       messages.push({ role: 'user', content: userText });
       
-      // Keep last 6 conversation turns but ALWAYS replace system prompt with fresh collected state
-      if (messages.length > 7) {
-        messages = [{ role: 'system', content: buildSystemPrompt() }, ...messages.slice(-6)];
-      } else {
-        // Always keep system prompt current with latest collected data
-        messages[0] = { role: 'system', content: buildSystemPrompt() };
+      // Update system prompt with latest collected data before calling AI
+      messages[0] = { role: 'system', content: buildSystemPrompt() };
+      
+      // Limit context to keep it fast
+      if (messages.length > 8) {
+        messages = [messages[0], ...messages.slice(-6)];
       }
 
       setAgentState('PROCESSING');
@@ -236,100 +236,50 @@ Booked Slots (DO NOT BOOK THESE): ${bookedStr || 'None'}`;
         const aiResponse = await callGroq(messages);
         if (!isActiveRef.current) break;
 
-        // ✅ Extract collected data from the FULL JSON if AI outputs it (for partial/final booking)
+        // Auto-extract any data the AI might have captured (JSON or partial JSON)
         try {
           const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             const parsed = JSON.parse(jsonMatch[0]);
-            if (parsed.name)  collected.name  = parsed.name;
-            if (parsed.phone) collected.phone = parsed.phone;
-            if (parsed.date)  collected.date  = parsed.date;
-            if (parsed.time)  collected.time  = parsed.time;
+            if (parsed.name) collectedRef.current.name = parsed.name;
+            if (parsed.phone) collectedRef.current.phone = parsed.phone;
+            if (parsed.date) collectedRef.current.date = parsed.date;
+            if (parsed.time) collectedRef.current.time = parsed.time;
+
+            if (parsed.status === 'BOOKED') {
+              onAppointmentBooked({
+                id: '',
+                patientInfo: `${parsed.name} - ${parsed.phone}`,
+                dateTimeInfo: `${parsed.date} - ${parsed.time}`,
+                createdAt: new Date().toISOString()
+              });
+              setAgentState('COMPLETED');
+              await speak("आपका धन्यवाद! आपकी अपॉइंटमेंट बुक हो गई है। क्लिनिक में मिलते हैं।");
+              stopAll();
+              return;
+            }
           }
-        } catch { /* not JSON, that's fine */ }
+        } catch(e) {}
 
-        // ✅ Also infer what the user just said based on context — update collected accordingly.
-        // If AI just asked for name (last AI msg asked for name) and user replied, store it.
-        const assistantMsgs = messages.filter(m => m.role === 'assistant');
-        const lastAiMsg = assistantMsgs[assistantMsgs.length - 1]?.content || '';
-        const nameQ  = /नाम/.test(lastAiMsg);
-        const phoneQ = /नंबर|मोबाइल|number/.test(lastAiMsg);
-        const dateQ  = /तारीख|date|दिनांक/.test(lastAiMsg);
-        const timeQ  = /समय|time|बजे/.test(lastAiMsg);
-        
-        if (nameQ  && !collected.name  && userText.trim().length > 1) collected.name  = userText.trim();
-        if (phoneQ && !collected.phone && /\d{5,}/.test(userText))     collected.phone = userText.trim();
-        if (dateQ  && !collected.date  && userText.trim().length > 2)  collected.date  = userText.trim();
-        if (timeQ  && !collected.time  && userText.trim().length > 1)  collected.time  = userText.trim();
+        messages.push({ role: 'assistant', content: aiResponse });
+        await speak(aiResponse);
 
-        const isBooked = /\"status\"\s*:\s*\"BOOKED\"/i.test(aiResponse);
-        if (isBooked) {
-          try {
-            const jsonStr = aiResponse.substring(aiResponse.indexOf('{'), aiResponse.lastIndexOf('}') + 1);
-            const data = JSON.parse(jsonStr);
-            
-            await speak("बहुत अच्छा! आपकी अपॉइंटमेंट सफलतापूर्वक बुक हो गई है। डॉक्टर रमेश चावलानी आपसे जल्द मिलेंगे। धन्यवाद।");
-            
-            onAppointmentBooked({
-              id: Math.random().toString(36).substring(7),
-              patientInfo: `${data.name} - ${data.phone}`,
-              dateTimeInfo: `${data.date} - ${data.time}`,
-              createdAt: new Date().toISOString()
-            });
-            
-            setAgentState('COMPLETED');
-            await new Promise(r => setTimeout(r, 3000));
-            stopAll();
-            break;
-          } catch (e) {
-            console.error("JSON parse error from AI:", e);
-            messages.push({ role: 'assistant', content: aiResponse });
-            await speak(aiResponse);
-          }
-        } else {
-          messages.push({ role: 'assistant', content: aiResponse });
-          await speak(aiResponse);
-        }
-
-      } catch (e) {
-        console.error("Groq Error:", e);
-        await speak("माफ़ कीजिएगा, नेटवर्क में कुछ परेशानी आ रही है। कृपया थोड़ी देर बाद फिर से कोशिश करें।");
+      } catch (err) {
+        console.error("AI Flow Error:", err);
+        await speak("माफ़ कीजिये, कुछ तकनीकी दिक्कत आ गई है। कृपया थोड़ी देर बाद कोशिश करें।");
         stopAll();
-        break;
       }
     }
-  }, [speak, listenOnce, stopAll, onAppointmentBooked]);
+  }, [speak, listenOnce, onAppointmentBooked, stopAll]);
 
   const startCall = useCallback(() => {
-    if (isActiveRef.current) return;
-    
-    // Check if API key is present
-    if (!import.meta.env.VITE_GROQ_API_KEY) {
-      alert("⚠️ Groq API key is missing. Please add VITE_GROQ_API_KEY to your Vercel Environment Variables.");
-      return;
-    }
-
     isActiveRef.current = true;
-    
-    // Ensure voices are loaded before starting
-    const voices = window.speechSynthesis.getVoices();
-    if (voices.length === 0) {
-      window.speechSynthesis.onvoiceschanged = () => {
-        if (isActiveRef.current && agentState === 'IDLE') runConversationalFlow();
-      };
-    } else {
-      runConversationalFlow();
-    }
-  }, [runConversationalFlow, agentState]);
+    runConversationalFlow();
+  }, [runConversationalFlow]);
 
   const endCall = useCallback(() => {
     stopAll();
   }, [stopAll]);
-
-  // Load voices on mount
-  useEffect(() => {
-    window.speechSynthesis.getVoices();
-  }, []);
 
   return { agentState, transcript, startCall, endCall };
 }
