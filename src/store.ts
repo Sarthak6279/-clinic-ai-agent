@@ -160,10 +160,7 @@ export function isSlotBooked(date: string, time: string): boolean {
   return cachedAppointments.some(a => a.date === date && a.time === time && a.status !== 'cancelled');
 }
 
-// Ensure anyone trying to read local cache just gets the memory array
-export function getLocalAppointments(): BookedSlot[] {
-  return cachedAppointments;
-}
+
 
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 6);

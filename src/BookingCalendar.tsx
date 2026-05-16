@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ALL_SLOTS, APPOINTMENTS_STORAGE_KEY, isSlotBooked, saveAppointment, generateId, type BookedSlot } from './store';
+import { ALL_SLOTS, APPOINTMENTS_STORAGE_KEY, isSlotBooked, saveAppointment, fetchAppointments, generateId, type BookedSlot } from './store';
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();

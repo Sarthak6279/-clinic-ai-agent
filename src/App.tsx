@@ -497,13 +497,6 @@ function VoiceWidget({
     PROCESSING: 'Confirming details...',
     COMPLETED: '✅ Appointment booked'
   };
-  const stepLabel: Record<AgentState, string> = {
-    IDLE: 'Please stay on the line',
-    SPEAKING: 'We are guiding your booking',
-    LISTENING: 'You can speak naturally',
-    PROCESSING: 'One moment while we save this',
-    COMPLETED: 'Call ending shortly'
-  };
 
   if (!isOpen) return null;
 
