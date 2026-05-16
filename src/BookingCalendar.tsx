@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ALL_SLOTS, APPOINTMENTS_STORAGE_KEY, isSlotBooked, saveAppointment, fetchAppointments, generateId, type BookedSlot } from './store';
+import { ALL_SLOTS, APPOINTMENTS_STORAGE_KEY, isSlotBooked, saveAppointment, fetchAppointments, subscribeToRealtimeUpdates, generateId, type BookedSlot } from './store';
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
@@ -45,7 +45,7 @@ export default function BookingCalendar({ onClose }: { onClose?: () => void }) {
     setBookedMap(map);
   }, []);
 
-  // ── Poll Supabase every 10 seconds — catches AI bookings + admin changes ──
+  // ── Poll Supabase every 10 seconds — fallback for missed real-time events ──
   useEffect(() => {
     const sync = async () => {
       await fetchAppointments();
@@ -54,6 +54,13 @@ export default function BookingCalendar({ onClose }: { onClose?: () => void }) {
     sync(); // immediate on mount
     const poll = setInterval(sync, 10000);
     return () => clearInterval(poll);
+  }, [rebuildSlots]);
+
+  // ── Supabase real-time subscription — instant push on any DB change ──
+  // Admin deletes/cancels → slot becomes available immediately on ALL devices
+  useEffect(() => {
+    const unsubscribe = subscribeToRealtimeUpdates();
+    return unsubscribe;
   }, [rebuildSlots]);
 
   // ── Re-rebuild whenever selectedDate changes ──

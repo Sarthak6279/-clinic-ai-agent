@@ -49,6 +49,33 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 export const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
+/**
+ * Subscribe to Supabase real-time changes on the appointments table.
+ * When any row is inserted, updated, or deleted (by admin or any device),
+ * this fires fetchAppointments() instantly so all calendars update in real-time.
+ * Returns an unsubscribe function — call it on component unmount.
+ */
+export function subscribeToRealtimeUpdates(): () => void {
+  if (!supabase) return () => {};
+
+  const channel = supabase
+    .channel('appointments-realtime')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'appointments' },
+      async () => {
+        // Any change (insert/update/delete) → re-fetch and broadcast
+        await fetchAppointments();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+
 function splitLegacyField(value?: string) {
   const [first = '', second = ''] = (value || '').split(' - ');
   return { first: first.trim(), second: second.trim() };
