@@ -1,13 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchAppointments, getLocalAppointments, updateAppointmentStatus, deleteAppointment, type BookedSlot } from './store';
 
-function statusColor(s: BookedSlot['status']) {
-  return s === 'confirmed' ? '#00a896' : s === 'completed' ? '#0e6d8c' : '#e74c3c';
-}
-
-function statusBg(s: BookedSlot['status']) {
-  return s === 'confirmed' ? 'rgba(0,168,150,0.1)' : s === 'completed' ? 'rgba(14,109,140,0.1)' : 'rgba(231,76,60,0.1)';
-}
 
 export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [appointments, setAppointments] = useState<BookedSlot[]>([]);
