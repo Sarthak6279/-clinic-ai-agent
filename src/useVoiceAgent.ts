@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ALL_SLOTS, isSlotBooked } from './store';
+
 
 export interface Appointment {
   id: string;
@@ -112,7 +112,7 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
         resolve(text);
       };
 
-      recognition.onerror = (e: any) => {
+      recognition.onerror = () => {
         cleanup();
         resolve('');
       };
