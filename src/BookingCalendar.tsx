@@ -31,12 +31,30 @@ export default function BookingCalendar({ onClose }: { onClose?: () => void }) {
   const [mode, setMode] = useState<'clinic' | 'online'>('clinic');
   const [submitting, setSubmitting] = useState(false);
 
-  // ✅ Fetch fresh cloud data every time the calendar opens — catches any deletions from dashboard
+  // ── Real-time sync: fetch from Supabase every 15 seconds ──
   useEffect(() => {
-    fetchAppointments();
+    // Fetch immediately on open
+    fetchAppointments().then(rebuildMap);
+
+    // Poll every 15 seconds to catch changes on other devices / admin deletions
+    const pollInterval = setInterval(() => {
+      fetchAppointments().then(rebuildMap);
+    }, 15000);
+
+    return () => clearInterval(pollInterval);
   }, []);
 
-  // Rebuild booked map when appointments change (listens to both event names)
+  // Rebuild slot availability whenever selectedDate changes or appointments update
+  function rebuildMap() {
+    setBookedMap(prev => {
+      const map: Record<string, boolean> = { ...prev };
+      ALL_SLOTS.forEach(slot => {
+        if (selectedDate) map[slot] = isSlotBooked(selectedDate, slot);
+      });
+      return map;
+    });
+  }
+
   useEffect(() => {
     const rebuild = () => {
       const map: Record<string, boolean> = {};
@@ -46,9 +64,7 @@ export default function BookingCalendar({ onClose }: { onClose?: () => void }) {
       setBookedMap({ ...map });
     };
     const syncFromStorage = (event: StorageEvent) => {
-      if (event.key === APPOINTMENTS_STORAGE_KEY) {
-        rebuild();
-      }
+      if (event.key === APPOINTMENTS_STORAGE_KEY) rebuild();
     };
 
     rebuild();

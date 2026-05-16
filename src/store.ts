@@ -104,14 +104,19 @@ export async function fetchAppointments(): Promise<BookedSlot[]> {
       return getLocalAppointments();
     }
     if (data) {
-      const local = getLocalAppointments();
+      // Supabase is the source of truth — use its data directly
+      // (this ensures admin deletions / status changes are reflected everywhere)
       const normalizedDb = data.map((item) => normalizeAppointment(item));
+      
+      // Also keep any local-only entries that haven't synced to Supabase yet
+      const local = getLocalAppointments();
       const dbIds = new Set(normalizedDb.map(d => d.id));
       const localOnly = local.filter(l => !dbIds.has(l.id));
       
-      persistAppointments(
-        [...localOnly, ...normalizedDb].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      const merged = [...localOnly, ...normalizedDb].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
+      persistAppointments(merged);
       return cachedAppointments;
     }
   }

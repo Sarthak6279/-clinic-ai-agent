@@ -84,23 +84,23 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 .hero-badge2-text { font-size: 0.8rem; color: white; font-weight: 600; }
 
 /* ── TRUST STRIP ── */
-.trust-strip { background: var(--navy); padding: 2.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
+.trust-strip { background: var(--navy); padding: 2.5rem 0 !important; border-bottom: 1px solid rgba(255,255,255,0.07); }
 .trust-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
 .trust-item {
   display: flex; align-items: flex-start; gap: 0.9rem;
-  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
-  border-radius: 14px; padding: 1.1rem 1.1rem;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px; padding: 1.1rem;
   transition: background 0.2s;
 }
 .trust-item:hover { background: rgba(255,255,255,0.09); }
 .trust-icon {
-  width: 40px; height: 40px; min-width: 40px; border-radius: 10px;
+  width: 42px; height: 42px; min-width: 42px; border-radius: 10px;
   background: linear-gradient(135deg, var(--blue), var(--cyan));
   display: flex; align-items: center; justify-content: center;
   color: white; flex-shrink: 0;
 }
-.trust-title { font-size: 0.85rem; font-weight: 700; color: white; margin-bottom: 0.2rem; }
-.trust-text { font-size: 0.75rem; color: rgba(255,255,255,0.55); line-height: 1.5; }
+.trust-title { font-size: 0.85rem; font-weight: 700; color: white; margin-bottom: 0.25rem; }
+.trust-text { font-size: 0.74rem; color: rgba(255,255,255,0.55); line-height: 1.5; }
 
 /* ── SECTIONS COMMON ── */
 section { padding: 5.5rem 0; }
