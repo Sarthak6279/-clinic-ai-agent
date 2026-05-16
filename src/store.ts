@@ -54,18 +54,34 @@ function splitLegacyField(value?: string) {
   return { first: first.trim(), second: second.trim() };
 }
 
+// ── Normalize time: "02:00 PM" → "2:00 PM", "09:30 AM" → "9:30 AM" ──────────
+export function normalizeTime(time: string): string {
+  if (!time) return time;
+  return time.trim().replace(/^0(\d):/, '$1:');
+}
+
+// ── Normalize phone: strip spaces, dashes, brackets ─────────────────────────
+function normalizePhone(phone: string): string {
+  if (!phone) return phone;
+  return phone.replace(/[\s\-().+]/g, '');
+}
+
 function normalizeAppointment(input: AppointmentRecord): BookedSlot {
   const patient = splitLegacyField(input.patientInfo);
   const schedule = splitLegacyField(input.dateTimeInfo);
   const bookedVia = input.bookedVia ?? input.booked_via;
   const status = input.status;
 
+  const rawTime  = input.time  || schedule.second || '9:00 AM';
+  const rawPhone = input.patientPhone || input.patient_phone || input.phone || patient.second || '—';
+  const rawName  = input.patientName  || input.patient_name  || input.name  || patient.first  || 'Unknown';
+
   return {
     id: input.id || generateId(),
     date: input.date || schedule.first || new Date().toISOString().slice(0, 10),
-    time: input.time || schedule.second || '09:00 AM',
-    patientName: input.patientName || input.patient_name || input.name || patient.first || 'Unknown',
-    patientPhone: input.patientPhone || input.patient_phone || input.phone || patient.second || '—',
+    time: normalizeTime(rawTime),           // "02:00 PM" → "2:00 PM"
+    patientName: rawName,
+    patientPhone: normalizePhone(rawPhone), // "6262 799 617" → "6262799617"
     reason: input.reason || (bookedVia === 'ai' || bookedVia === 'voice' || input.patientInfo ? 'AI Voice Booking' : ''),
     bookedVia: VALID_BOOKING_SOURCES.includes(bookedVia as BookedSlot['bookedVia']) ? bookedVia as BookedSlot['bookedVia'] : (input.patientInfo ? 'ai' : 'form'),
     createdAt: input.createdAt || input.created_at || new Date().toISOString(),
@@ -79,8 +95,16 @@ function persistAppointments(appointments: BookedSlot[]) {
 }
 
 function broadcastAppointmentsUpdated() {
+  // Always notify listeners that a (cloud-aware) update occurred.
   window.dispatchEvent(new Event('appointments-updated'));
-  window.dispatchEvent(new Event('appointments-updated-local'));
+
+  // Only dispatch the local-only event when Supabase isn't configured.
+  // When Supabase is configured we want the cloud-backed `appointments-updated`
+  // event to be the single source of sync so localStorage doesn't overwrite
+  // cloud data in other tabs/devices.
+  if (!supabase) {
+    window.dispatchEvent(new Event('appointments-updated-local'));
+  }
 }
 
 export function getLocalAppointments(): BookedSlot[] {
@@ -161,7 +185,10 @@ export async function deleteAppointment(id: string): Promise<void> {
 }
 
 export function isSlotBooked(date: string, time: string): boolean {
-  return cachedAppointments.some(a => a.date === date && a.time === time && a.status !== 'cancelled');
+  const t = normalizeTime(time);
+  return cachedAppointments.some(
+    a => a.date === date && normalizeTime(a.time) === t && a.status !== 'cancelled'
+  );
 }
 
 
