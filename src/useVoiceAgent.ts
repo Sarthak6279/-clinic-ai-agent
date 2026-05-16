@@ -141,14 +141,18 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
         'Authorization': `Bearer ${key}`
       },
       body: JSON.stringify({
-        model: 'llama3-8b-8192',
+        model: 'llama-3.1-8b-instant',
         messages: messages,
         temperature: 0.5,
         max_tokens: 300
       })
     });
     
-    if (!res.ok) throw new Error("Groq API Error");
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.error("Groq API failed:", errBody);
+      throw new Error("Groq API Error");
+    }
     const data = await res.json();
     return data.choices[0].message.content;
   };
