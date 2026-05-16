@@ -4,6 +4,21 @@ import { saveAppointment, fetchAppointments, generateId, type BookedSlot } from 
 import AdminLogin from './AdminLogin';
 import AdminDashboard from './AdminDashboard';
 import BookingCalendar from './BookingCalendar';
+import { 
+  Menu, 
+  X, 
+  PhoneCall, 
+  Calendar, 
+  Award, 
+  MapPin, 
+  CheckCircle2, 
+  Stethoscope, 
+  ShieldCheck,
+  TrendingUp,
+  Users,
+  Activity,
+  HeartPulse
+} from 'lucide-react';
 
 const FAQS = [
   { q: "What are the consultation timings?", a: "Dr. Chawalani is available Monday to Saturday, 10:00 AM – 2:00 PM and 5:00 PM – 8:00 PM. Sunday by appointment only." },
@@ -84,10 +99,10 @@ function Nav({ onBook }: { onBook: () => void }) {
         <a className="nav-link" href="#testimonials">Reviews</a>
         <a className="nav-link" href="#contact">Contact</a>
         <a className="nav-link" href="#admin" style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.8rem', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '1.5rem' }}>Doctor Portal</a>
-        <button className="nav-cta" onClick={onBook}>📞 Book Appointment</button>
+        <button className="nav-cta" onClick={onBook}><PhoneCall size={14} style={{ marginRight: '6px' }} /> Book Appointment</button>
       </div>
       <button className="nav-hamburger" onClick={() => setMobileOpen(v => !v)} aria-label="Toggle menu">
-        {mobileOpen ? '✕' : '☰'}
+        {mobileOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
     </nav>
     <div className={`mobile-menu ${mobileOpen ? 'open' : ''}`}>
@@ -97,7 +112,7 @@ function Nav({ onBook }: { onBook: () => void }) {
       <a className="nav-link" href="#testimonials" onClick={closeMenu}>Reviews</a>
       <a className="nav-link" href="#contact" onClick={closeMenu}>Contact</a>
       <a className="nav-link" href="#admin" onClick={closeMenu} style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem' }}>Doctor Portal</a>
-      <button className="nav-cta" onClick={() => { closeMenu(); onBook(); }} style={{ width: '100%', justifyContent: 'center', marginTop: '0.5rem' }}>📞 Book Appointment</button>
+      <button className="nav-cta" onClick={() => { closeMenu(); onBook(); }} style={{ width: '100%', justifyContent: 'center', marginTop: '0.5rem' }}><PhoneCall size={18} style={{ marginRight: '8px' }} /> Book Appointment</button>
     </div>
     </>
   );
@@ -111,8 +126,8 @@ function Hero({ onBook }: { onBook: () => void }) {
         <h1 className="hero-title">Specialist Care for<br /><span>Liver &amp; Digestive</span><br />Health</h1>
         <p className="hero-desc">Evidence-based hepatology and gastroenterology care by Dr. Romesh Chawalani in Madan Mahal, Jabalpur. Clear guidance, structured treatment plans, and patient-first consultations.</p>
         <div className="hero-actions">
-          <button className="btn-primary" onClick={onBook}>Book an Appointment</button>
-          <a href="#services" className="btn-secondary">View Services</a>
+          <button className="btn-primary" onClick={onBook}><PhoneCall size={18} /> Book Appointment</button>
+          <a href="#services" className="btn-secondary"><Activity size={18} /> View Services</a>
         </div>
         <div className="hero-stats">
           <div className="hero-stat"><div className="hero-stat-num">12+</div><div className="hero-stat-label">Years Experience</div></div>
@@ -168,37 +183,75 @@ function Profile() {
   const exp = useCountUp(12);
   const pts = useCountUp(5000);
   const rev = useCountUp(650);
+  
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { exp.start(); pts.start(); rev.start(); } }, { threshold: 0.2 });
+    const obs = new IntersectionObserver(([e]) => { 
+      if (e.isIntersecting) { 
+        exp.start(); 
+        pts.start(); 
+        rev.start(); 
+      } 
+    }, { threshold: 0.2 });
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
+
   return (
     <section className="profile-section" id="about">
       <div className="container">
         <div className="profile-grid fade-up" ref={ref}>
           <div className="profile-photo-wrap">
-            <div className="profile-photo"><div className="profile-photo-initials">RC</div></div>
-            <div className="profile-photo-badge">MBBS · MD · Gastroenterology</div>
-          </div>
-          <div>
-            <div className="section-label">About the Doctor</div>
-            <div className="profile-meta-name">Dr. Romesh Chawalani</div>
-            <div className="profile-meta-role">Hepatologist & Gastroenterologist</div>
-            <p className="profile-meta-desc">Dr. Romesh Chawalani is a highly experienced Hepatologist and Gastroenterologist based in Madan Mahal, Jabalpur. With over 12 years of dedicated clinical practice, he specializes in diagnosing and treating complex liver diseases, digestive disorders, and gastrointestinal conditions. His patient-first approach, combined with advanced diagnostic techniques, ensures compassionate and evidence-based care for every patient.</p>
-            <div className="profile-stats">
-              <div className="profile-stat-card"><div className="num">{exp.count}+</div><div className="lbl">Years Experience</div></div>
-              <div className="profile-stat-card"><div className="num">{pts.count}+</div><div className="lbl">Patients Treated</div></div>
-              <div className="profile-stat-card"><div className="num">{rev.count}</div><div className="lbl">Patient Reviews</div></div>
-              <div className="profile-stat-card"><div className="num">4.0★</div><div className="lbl">Avg. Rating</div></div>
+            <div className="profile-photo">
+              <div className="profile-photo-initials">RC</div>
+              <img src="/doctor.png" alt="Dr. Romesh Chawalani" style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'relative', zIndex: 1 }} />
+              <div className="profile-photo-badge">MBBS, MD (Medicine)</div>
             </div>
-            <div className="profile-badges">
-              <span className="profile-badge">✅ Verified Doctor</span>
-              <span className="profile-badge">🏥 Madan Mahal, Jabalpur</span>
-              <span className="profile-badge">⚡ Responds in 5 mins</span>
-              <span className="profile-badge">🎓 MD Gastroenterology</span>
+          </div>
+          
+          <div className="profile-content">
+            <div className="section-label">Expert Specialist</div>
+            <h2 className="profile-meta-name">Dr. Romesh Chawalani</h2>
+            <div className="profile-meta-role">Hepatologist & Gastroenterologist</div>
+            
+            <p className="profile-meta-desc">
+              Specialized in Liver Diseases, Hepatitis, Cirrhosis, and complex Digestive Health issues. 
+              Dr. Chawalani is a distinguished <strong>Gold Medalist</strong> with over <strong>12 years</strong> of clinical expertise in providing structured, evidence-based treatments for chronic and acute gastrointestinal conditions.
+            </p>
+            
+            <div className="profile-stats">
+              <div className="profile-stat-card">
+                <div className="profile-stat-icon"><Award size={20} /></div>
+                <div className="num">{exp.count}+</div>
+                <div className="lbl">Years Exp.</div>
+              </div>
+              <div className="profile-stat-card">
+                <div className="profile-stat-icon"><Users size={20} /></div>
+                <div className="num">{pts.count}+</div>
+                <div className="lbl">Patients</div>
+              </div>
+              <div className="profile-stat-card">
+                <div className="profile-stat-icon"><ShieldCheck size={20} /></div>
+                <div className="num">Gold</div>
+                <div className="lbl">Medalist</div>
+              </div>
+              <div className="profile-stat-card">
+                <div className="profile-stat-icon"><TrendingUp size={20} /></div>
+                <div className="num">4.0★</div>
+                <div className="lbl">Rating</div>
+              </div>
+            </div>
+
+            <div className="profile-trust-row">
+              <div className="profile-trust-item">
+                <CheckCircle2 size={16} className="icon-blue" />
+                <span>Verified Specialist</span>
+              </div>
+              <div className="profile-trust-item">
+                <MapPin size={16} className="icon-blue" />
+                <span>Madan Mahal, Jabalpur</span>
+              </div>
             </div>
           </div>
         </div>
@@ -236,23 +289,37 @@ function Insights() {
   return (
     <section className="insights-section">
       <div className="container">
-        <div className="section-label fade-up" ref={ref}>Clinic at a Glance</div>
-        <div className="section-title" style={{ color: 'white', marginBottom: '0.75rem' }}>Real-Time Clinic Metrics</div>
-         <p className="section-desc" style={{ color: 'rgba(255,255,255,0.65)', marginBottom: '2.5rem' }}>A quick summary of patient volume, booking pace, and consultation quality.</p>
-         <div className="insights-grid">
-           {[
-             { icon: "👥", val: "5,000+", label: "Patients Treated", change: "12+ years of practice" },
-             { icon: "📅", val: "22", label: "Daily Slots", change: "30-minute appointments" },
-             { icon: "⭐", val: "4.0/5", label: "Patient Rating", change: "650+ verified reviews" },
-             { icon: "⚡", val: "~5 min", label: "Booking Response", change: "During working hours" },
-           ].map((c, i) => (
-            <div key={i} className="insight-card">
-              <div className="insight-icon">{c.icon}</div>
-              <div className="insight-val">{c.val}</div>
-              <div className="insight-label">{c.label}</div>
-              <div className="insight-change">{c.change}</div>
-            </div>
-          ))}
+        <div className="section-header-center fade-up" ref={ref}>
+          <div className="section-label">Clinic Metrics</div>
+          <h2 className="section-title" style={{ color: 'white' }}>Impact in Numbers</h2>
+          <p className="section-desc" style={{ color: 'rgba(255,255,255,0.6)' }}>Real-time statistics from our medical facility in Jabalpur.</p>
+        </div>
+        
+        <div className="insights-grid">
+          <div className="insight-card">
+            <div className="insight-icon"><Activity size={32} color="#06B6D4" /></div>
+            <div className="insight-val">50+</div>
+            <div className="insight-label">Daily Patients</div>
+            <div className="insight-change">↑ 12% this month</div>
+          </div>
+          <div className="insight-card">
+            <div className="insight-icon"><HeartPulse size={32} color="#06B6D4" /></div>
+            <div className="insight-val">98%</div>
+            <div className="insight-label">Success Rate</div>
+            <div className="insight-change">Verified Outcomes</div>
+          </div>
+          <div className="insight-card">
+            <div className="insight-icon"><Calendar size={32} color="#06B6D4" /></div>
+            <div className="insight-val">22</div>
+            <div className="insight-label">Daily Slots</div>
+            <div className="insight-change">Available Mon-Sat</div>
+          </div>
+          <div className="insight-card">
+            <div className="insight-icon"><Stethoscope size={32} color="#06B6D4" /></div>
+            <div className="insight-val">24/7</div>
+            <div className="insight-label">AI Booking</div>
+            <div className="insight-change">Always Available</div>
+          </div>
         </div>
       </div>
     </section>
@@ -272,8 +339,8 @@ function Booking({ onBook, onOpenCalendar }: { onBook: () => void; onOpenCalenda
             <div className="section-title">Book Your Visit</div>
             <p className="section-desc">Choose from 22 daily slots (30 min each, 9 AM – 7:30 PM). Book via Voice AI or select a slot from the calendar.</p>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
-              <button className="btn-primary" onClick={onOpenCalendar}>Open Booking Calendar</button>
-              <button className="btn-secondary" onClick={onBook}>📞 Call Assistant Booking</button>
+              <button className="btn-primary" onClick={onOpenCalendar}><Calendar size={18} /> Open Booking Calendar</button>
+              <button className="btn-secondary" onClick={onBook}><PhoneCall size={18} /> Call Assistant Booking</button>
             </div>
             <div style={{ background: 'var(--surface2)', borderRadius: 'var(--radius)', padding: '1.25rem', border: '1px solid var(--border)' }}>
               <div style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: '0.4rem', fontSize: '0.95rem' }}>Clinic Hours</div>
