@@ -433,25 +433,72 @@ function VoiceWidget({ isOpen, onClose, agentState, transcript }: any) {
     }
   }, [agentState, isOpen, onClose]);
 
+  const [callTime, setCallTime] = useState(0);
+  useEffect(() => {
+    let timer: any;
+    if (isOpen && agentState !== 'IDLE' && agentState !== 'COMPLETED') {
+      timer = setInterval(() => setCallTime(t => t + 1), 1000);
+    } else if (!isOpen) {
+      setCallTime(0);
+    }
+    return () => clearInterval(timer);
+  }, [isOpen, agentState]);
+
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
   const statusText: Record<string, string> = {
-    IDLE: 'Connecting...', SPEAKING: 'AI is speaking...', LISTENING: 'Listening to you...', PROCESSING: 'Processing...', COMPLETED: '✅ Appointment Booked!'
+    IDLE: 'Connecting...', SPEAKING: 'Speaking...', LISTENING: 'Listening...', PROCESSING: 'Processing...', COMPLETED: 'Call Ended'
   };
-  const stepLabel: Record<string, string> = {
-    IDLE: '', SPEAKING: 'Please wait while I speak...', LISTENING: 'Go ahead and speak now', PROCESSING: 'Got it, one moment...', COMPLETED: 'Call ending shortly...'
-  };
+
+  if (!isOpen) return null;
+
   return (
-    <div className={`widget-overlay ${isOpen ? 'open' : ''}`} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="widget">
-        <button className="widget-close" onClick={onClose}>✕</button>
-        <div className={`widget-avatar ${agentState === 'SPEAKING' ? 'speaking' : ''}`}>
-          {agentState === 'LISTENING' ? '🎤' : agentState === 'COMPLETED' ? '✅' : '🤖'}
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '"Inter", -apple-system, sans-serif' }}>
+      <div style={{ width: '100%', maxWidth: 360, height: '80vh', maxHeight: 700, background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)', borderRadius: 40, border: '4px solid #334155', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1.5rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', position: 'relative', overflow: 'hidden' }}>
+        
+        {/* Glowing pulse effect when speaking/listening */}
+        <div style={{ position: 'absolute', top: '15%', width: 250, height: 250, background: agentState === 'SPEAKING' ? 'rgba(59, 130, 246, 0.2)' : agentState === 'LISTENING' ? 'rgba(16, 185, 129, 0.2)' : 'transparent', borderRadius: '50%', filter: 'blur(40px)', transition: 'background 0.5s ease', pointerEvents: 'none' }} />
+
+        {/* Top: Caller Info */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, marginTop: '2rem' }}>
+          <div style={{ width: 110, height: 110, borderRadius: '50%', background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem', marginBottom: '1.5rem', boxShadow: '0 10px 25px rgba(59, 130, 246, 0.4)', border: '3px solid rgba(255,255,255,0.1)' }}>
+            🤖
+          </div>
+          <h2 style={{ margin: 0, color: '#fff', fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.5px' }}>Dr. Romesh Clinic</h2>
+          <div style={{ color: agentState === 'COMPLETED' ? '#ef4444' : '#94a3b8', fontSize: '0.95rem', marginTop: '0.4rem', fontWeight: 500 }}>
+            {agentState === 'COMPLETED' ? statusText[agentState] : formatTime(callTime)}
+          </div>
         </div>
-        <div className="widget-status">{statusText[agentState] || 'Connecting...'}</div>
-        <div className="widget-transcript">{transcript ? `"${transcript}"` : stepLabel[agentState]}</div>
-        <div className={`widget-mic ${agentState === 'LISTENING' ? 'listening' : 'idle'}`}>
-          {agentState === 'LISTENING' ? '🎙️' : '🔇'}
+
+        {/* Middle: Transcript & Status */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', zIndex: 1, padding: '0 1rem' }}>
+          <div style={{ color: agentState === 'LISTENING' ? '#10b981' : agentState === 'SPEAKING' ? '#3b82f6' : '#64748b', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, marginBottom: '1rem', transition: 'color 0.3s' }}>
+            {statusText[agentState] || 'Connecting...'}
+          </div>
+          
+          <div style={{ color: '#fff', fontSize: '1.1rem', textAlign: 'center', lineHeight: 1.5, opacity: transcript ? 1 : 0.5, fontStyle: transcript ? 'normal' : 'italic', transition: 'opacity 0.3s', maxWidth: '100%' }}>
+            {transcript ? `"${transcript}"` : (agentState === 'LISTENING' ? 'Go ahead and speak...' : '...')}
+          </div>
         </div>
-        <div className="widget-step-label">Dr. Romesh Chawalani · AI Booking Assistant</div>
+
+        {/* Bottom: Controls */}
+        <div style={{ zIndex: 1, width: '100%', display: 'flex', justifyContent: 'center', gap: '2rem', marginBottom: '2rem' }}>
+          <button style={{ width: 60, height: 60, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
+            🔇
+          </button>
+          
+          <button onClick={onClose} style={{ width: 72, height: 72, borderRadius: '50%', background: '#ef4444', border: 'none', color: '#fff', fontSize: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 25px rgba(239, 68, 68, 0.4)', transform: 'rotate(135deg)', transition: 'transform 0.2s, background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#dc2626'} onMouseLeave={e => e.currentTarget.style.background = '#ef4444'}>
+            📞
+          </button>
+
+          <button style={{ width: 60, height: 60, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
+            💬
+          </button>
+        </div>
       </div>
     </div>
   );
