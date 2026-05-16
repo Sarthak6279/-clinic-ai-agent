@@ -61,13 +61,10 @@ export async function fetchAppointments(): Promise<BookedSlot[]> {
 }
 
 export async function saveAppointment(slot: BookedSlot): Promise<void> {
-  let insertSuccess = false;
   if (supabase) {
     const { error } = await supabase.from('appointments').insert([slot]);
     if (error) {
       console.error("Supabase insert error:", error);
-    } else {
-      insertSuccess = true;
     }
   }
 
