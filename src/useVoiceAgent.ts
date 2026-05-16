@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { getLocalAppointments, isSlotBooked } from './store';
+import { fetchAppointments, getLocalAppointments, isSlotBooked } from './store';
 
 export interface Appointment {
   id: string;
@@ -161,6 +161,9 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
   };
 
   const runConversationalFlow = useCallback(async () => {
+    // Always fetch fresh appointments from Supabase/admin dashboard before starting
+    await fetchAppointments();
+
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
     
@@ -182,36 +185,47 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
         .map(a => `${a.date} at ${a.time}`)
         .join(', ') || 'None';
 
-      return `You are the receptionist of Dr. Romesh Chawalani's clinic. Speak ONLY in Hindi (Devanagari script).
+      return `आप डॉक्टर रमेश चावलानी की क्लिनिक की रिसेप्शनिस्ट हैं। केवल हिंदी में बात करें।
 
-RULES (follow strictly):
-1. Ask ONE question at a time, in this exact order: Name → 10-digit mobile number → Date → Time.
-2. If data is already in "COLLECTED INFO" below, DO NOT ask for it again.
-3. If the phone number is NOT exactly 10 digits, politely ask again. Do NOT give any example.
-4. Sunday clinic is CLOSED. If user picks Sunday, inform them and ask for another day.
-5. Check BOOKED SLOTS. If user picks a booked slot, say "यह समय पहले से बुक है" and ask for another time.
-6. Once all 4 fields collected and valid, give ONE brief summary and ask for confirmation.
-7. Say time in natural Hindi words in confirmation (e.g. "साढ़े दस बजे", "सवा ग्यारह बजे", "दोपहर बारह बजे", "ढाई बजे").
-8. If user says any detail is wrong, ONLY correct that one detail. Remember all other details as-is.
-9. Never repeat collected information unnecessarily.
-10. Never give examples of any kind.
-11. On confirmation (हाँ / जी / सही है), output EXACTLY this JSON and nothing else:
+व्यवहार:
+- हमेशा विनम्र, शांत और प्राकृतिक हिंदी में बात करें।
+- बातचीत इंसानों जैसी लगे, रोबोट जैसी नहीं।
+- छोटे और साफ वाक्य बोलें।
+- कोई उदाहरण न दें।
+- अनावश्यक जानकारी या लंबे जवाब न दें।
+- जानकारी बार-बार रिपीट न करें।
+- केवल वही जानकारी दोबारा पूछें जो गलत या अधूरी हो।
+
+क्रम में यह जानकारी लें:
+1. नाम
+2. मोबाइल नंबर (केवल 10 अंक)
+3. तारीख
+4. समय
+
+नियम:
+- एक समय में केवल एक सवाल पूछें।
+- अगर नंबर 10 अंक का नहीं है तो विनम्रता से दोबारा पूछें।
+- रविवार को क्लिनिक बंद है। रविवार की तारीख पर दूसरा दिन पूछें।
+- अगर BOOKED SLOTS में वो समय है तो कहें यह समय पहले से बुक है और दूसरा समय पूछें।
+- अगर उपयोगकर्ता कहे कोई जानकारी गलत है तो केवल वही जानकारी बदलें, बाकी याद रखें।
+- सभी जानकारी मिलने के बाद एक बार संक्षेप में पुष्टि करें और confirmation मांगें।
+- पुष्टि होने पर (हाँ/जी/सही है) EXACTLY यह JSON और कुछ नहीं:
 {"status": "BOOKED", "name": "...", "phone": "...", "date": "YYYY-MM-DD", "time": "HH:MM AM/PM"}
 
-COLLECTED INFO:
-- Name: ${c.name || 'MISSING'}
-- Phone: ${c.phone || 'MISSING'}
-- Date: ${c.date || 'MISSING'}
-- Time: ${c.time || 'MISSING'}
+अभी तक मिली जानकारी:
+- नाम: ${c.name || 'नहीं मिला'}
+- मोबाइल: ${c.phone || 'नहीं मिला'}
+- तारीख: ${c.date || 'नहीं मिली'}
+- समय: ${c.time || 'नहीं मिला'}
 - ${availabilityInfo}
 
-TODAY: ${todayStr}
-BOOKED SLOTS: ${bookedList}`;
+आज की तारीख: ${todayStr}
+BOOKED SLOTS (ये समय पहले से बुक हैं, इन पर appointment न करें): ${bookedList}`;
     };
 
     let messages = [
       { role: 'system', content: buildSystemPrompt() },
-      { role: 'assistant', content: "डॉ. रोमेश चावलानी की क्लिनिक में कॉल करने के लिए धन्यवाद। मैं आपकी अपॉइंटमेंट बुक करने में मदद कर सकती हूँ। कृपया अपना नाम बताएं।" }
+      { role: 'assistant', content: "डॉक्टर रमेश चावलानी की क्लिनिक में कॉल करने के लिए धन्यवाद। मैं आपकी अपॉइंटमेंट बुक करने में मदद कर सकती हूँ। कृपया अपना नाम बताइए।" }
     ];
 
     await speak(messages[1].content);
