@@ -556,13 +556,11 @@ function Footer() {
 function VoiceWidget({
   isOpen,
   onClose,
-  agentState,
-  transcript
+  agentState
 }: {
   isOpen: boolean;
   onClose: () => void;
   agentState: AgentState;
-  transcript: string;
 }) {
   const [seconds, setSeconds] = useState(0);
 
@@ -778,7 +776,7 @@ export default function App() {
         </div>
       )}
 
-      <VoiceWidget isOpen={isWidgetOpen} onClose={handleCloseCall} agentState={agentState} transcript={transcript} />
+      <VoiceWidget isOpen={isWidgetOpen} onClose={handleCloseCall} agentState={agentState} />
     </>
   );
 }

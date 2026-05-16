@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ADMIN_CREDENTIALS } from './store';
+import { Shield } from 'lucide-react';
 
 export default function AdminLogin({ onLogin }: { onLogin: () => void }) {
   const [username, setUsername] = useState('');
