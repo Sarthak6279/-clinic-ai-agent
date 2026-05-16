@@ -693,7 +693,7 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHash);
   }, [isAdminAuthed]);
 
-  const handleBooked = (a: Appointment) => {
+  const handleBooked = async (a: Appointment) => {
     // Split the mapped strings safely
     const partsName = (a.patientInfo || '').split(' - ');
     const partsDate = (a.dateTimeInfo || '').split(' - ');
@@ -714,7 +714,10 @@ export default function App() {
       createdAt: a.createdAt,
       status: 'confirmed',
     };
-    saveAppointment(slot);
+    // Await so Supabase save completes and calendar updates immediately
+    await saveAppointment(slot);
+    // Force-refresh so calendar reflects the new booking across all devices
+    await fetchAppointments();
   };
 
   const { agentState, transcript, startCall, endCall } = useVoiceAgent(handleBooked);
