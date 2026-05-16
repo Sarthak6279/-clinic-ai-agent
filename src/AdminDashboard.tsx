@@ -38,21 +38,21 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   }, []);
 
   const filtered = appointments
-    .filter(a => filter === 'all' || a.status === filter)
-    .filter(a => !selectedDate || a.date === selectedDate)
+    .filter(a => filter === 'all' || a?.status === filter)
+    .filter(a => !selectedDate || a?.date === selectedDate)
     .filter(a =>
       search === '' ||
-      a.patientName.toLowerCase().includes(search.toLowerCase()) ||
-      a.patientPhone.includes(search)
+      (a?.patientName || '').toLowerCase().includes(search.toLowerCase()) ||
+      (a?.patientPhone || '').includes(search)
     )
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    .sort((a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime());
 
   const stats = {
     total: appointments.length,
-    confirmed: appointments.filter(a => a.status === 'confirmed').length,
-    completed: appointments.filter(a => a.status === 'completed').length,
-    cancelled: appointments.filter(a => a.status === 'cancelled').length,
-    today: appointments.filter(a => a.date === new Date().toISOString().slice(0, 10)).length,
+    confirmed: appointments.filter(a => a?.status === 'confirmed').length,
+    completed: appointments.filter(a => a?.status === 'completed').length,
+    cancelled: appointments.filter(a => a?.status === 'cancelled').length,
+    today: appointments.filter(a => a?.date === new Date().toISOString().slice(0, 10)).length,
   };
 
   return (
@@ -133,49 +133,50 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 </thead>
                 <tbody>
                   {filtered.map((a, i) => (
-                    <tr key={a.id} style={{ borderBottom: '1px solid rgba(5,191,219,0.08)', transition: 'background 0.2s' }} onMouseEnter={e => (e.currentTarget.style.background = '#f8fbfc')} onMouseLeave={e => (e.currentTarget.style.background = 'white')}>
+                    <tr key={a?.id || i} style={{ borderBottom: '1px solid rgba(5,191,219,0.08)', transition: 'background 0.2s' }} onMouseEnter={e => (e.currentTarget.style.background = '#f8fbfc')} onMouseLeave={e => (e.currentTarget.style.background = 'white')}>
                       <td style={{ padding: '0.9rem 1rem', color: '#6b7f8e', fontWeight: 600 }}>#{i + 1}</td>
                       <td style={{ padding: '0.9rem 1rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                           <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#05bfdb,#00e5c8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '0.82rem' }}>
-                            {a.patientName.charAt(0).toUpperCase()}
+                            {(a?.patientName || '?').charAt(0).toUpperCase()}
                           </div>
-                          <span style={{ fontWeight: 600, color: '#1a2332' }}>{a.patientName}</span>
+                          <span style={{ fontWeight: 600, color: '#1a2332' }}>{a?.patientName || 'Unknown'}</span>
                         </div>
                       </td>
-                      <td style={{ padding: '0.9rem 1rem', color: '#1a2332' }}>{a.patientPhone}</td>
+                      <td style={{ padding: '0.9rem 1rem', color: '#1a2332' }}>{a?.patientPhone || '—'}</td>
                       <td style={{ padding: '0.9rem 1rem', color: '#1a2332', whiteSpace: 'nowrap' }}>
                         {(() => {
                           try {
+                            if (!a?.date) return '—';
                             const d = new Date(a.date.includes('-') ? a.date + 'T12:00:00' : a.date);
                             if (isNaN(d.getTime())) return a.date;
                             return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-                          } catch { return a.date; }
+                          } catch { return a?.date || '—'; }
                         })()}
                       </td>
-                      <td style={{ padding: '0.9rem 1rem', color: '#0a4d68', fontWeight: 600 }}>{a.time}</td>
-                      <td style={{ padding: '0.9rem 1rem', color: '#6b7f8e', maxWidth: 160 }}>{a.reason || '—'}</td>
+                      <td style={{ padding: '0.9rem 1rem', color: '#0a4d68', fontWeight: 600 }}>{a?.time || '—'}</td>
+                      <td style={{ padding: '0.9rem 1rem', color: '#6b7f8e', maxWidth: 160 }}>{a?.reason || '—'}</td>
                       <td style={{ padding: '0.9rem 1rem' }}>
-                        <span style={{ background: a.bookedVia === 'voice' || a.bookedVia === 'ai' ? 'rgba(5,191,219,0.12)' : 'rgba(10,77,104,0.08)', color: '#0a4d68', padding: '0.2rem 0.6rem', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600 }}>
-                          {a.bookedVia === 'voice' || a.bookedVia === 'ai' ? '🎙️ AI' : '📝 Form'}
+                        <span style={{ background: a?.bookedVia === 'voice' || a?.bookedVia === 'ai' ? 'rgba(5,191,219,0.12)' : 'rgba(10,77,104,0.08)', color: '#0a4d68', padding: '0.2rem 0.6rem', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600 }}>
+                          {a?.bookedVia === 'voice' || a?.bookedVia === 'ai' ? '🎙️ AI' : '📝 Form'}
                         </span>
                       </td>
                       <td style={{ padding: '0.9rem 1rem' }}>
-                        <span style={{ background: statusBg(a.status), color: statusColor(a.status), padding: '0.25rem 0.7rem', borderRadius: 20, fontSize: '0.78rem', fontWeight: 700 }}>
-                          {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
+                        <span style={{ background: statusBg(a?.status || 'confirmed'), color: statusColor(a?.status || 'confirmed'), padding: '0.25rem 0.7rem', borderRadius: 20, fontSize: '0.78rem', fontWeight: 700 }}>
+                          {(a?.status || 'confirmed').charAt(0).toUpperCase() + (a?.status || 'confirmed').slice(1)}
                         </span>
                       </td>
                       <td style={{ padding: '0.9rem 1rem' }}>
                         <div style={{ display: 'flex', gap: '0.4rem' }}>
-                          {a.status === 'confirmed' && (
+                          {a?.status === 'confirmed' && (
                             <button onClick={() => updateAppointmentStatus(a.id, 'completed')}
                               style={{ background: 'rgba(14,109,140,0.1)', color: '#0e6d8c', border: 'none', borderRadius: 8, padding: '0.3rem 0.6rem', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'inherit', fontWeight: 600 }}>Done</button>
                           )}
-                          {a.status !== 'cancelled' && (
+                          {a?.status !== 'cancelled' && (
                             <button onClick={() => updateAppointmentStatus(a.id, 'cancelled')}
                               style={{ background: 'rgba(231,76,60,0.1)', color: '#e74c3c', border: 'none', borderRadius: 8, padding: '0.3rem 0.6rem', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'inherit', fontWeight: 600 }}>Cancel</button>
                           )}
-                          <button onClick={() => { if (confirm('Delete this appointment?')) deleteAppointment(a.id); }}
+                          <button onClick={() => { if (a?.id && confirm('Delete this appointment?')) deleteAppointment(a.id); }}
                             style={{ background: 'rgba(231,76,60,0.08)', color: '#e74c3c', border: 'none', borderRadius: 8, padding: '0.3rem 0.5rem', cursor: 'pointer', fontSize: '0.8rem' }}>🗑️</button>
                         </div>
                       </td>
