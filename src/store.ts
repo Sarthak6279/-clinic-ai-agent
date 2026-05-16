@@ -12,6 +12,17 @@ export interface BookedSlot {
   status: 'confirmed' | 'cancelled' | 'completed';
 }
 
+type AppointmentRecord = Partial<BookedSlot> & {
+  created_at?: string;
+  booked_via?: string;
+  patient_name?: string;
+  patient_phone?: string;
+  patientInfo?: string;
+  dateTimeInfo?: string;
+  name?: string;
+  phone?: string;
+};
+
 export function generateSlots(): string[] {
   const slots: string[] = [];
   let hour = 9, min = 0;
@@ -28,31 +39,92 @@ export function generateSlots(): string[] {
 
 export const ALL_SLOTS = generateSlots();
 
+const KEY = 'dr_romesh_appointments';
+export const APPOINTMENTS_STORAGE_KEY = KEY;
+
+const VALID_BOOKING_SOURCES: BookedSlot['bookedVia'][] = ['form', 'voice', 'ai'];
+const VALID_STATUSES: BookedSlot['status'][] = ['confirmed', 'cancelled', 'completed'];
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 export const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
-let cachedAppointments: BookedSlot[] = [];
+function splitLegacyField(value?: string) {
+  const [first = '', second = ''] = (value || '').split(' - ');
+  return { first: first.trim(), second: second.trim() };
+}
+
+function normalizeAppointment(input: AppointmentRecord): BookedSlot {
+  const patient = splitLegacyField(input.patientInfo);
+  const schedule = splitLegacyField(input.dateTimeInfo);
+  const bookedVia = input.bookedVia ?? input.booked_via;
+  const status = input.status;
+
+  return {
+    id: input.id || generateId(),
+    date: input.date || schedule.first || new Date().toISOString().slice(0, 10),
+    time: input.time || schedule.second || '09:00 AM',
+    patientName: input.patientName || input.patient_name || input.name || patient.first || 'Unknown',
+    patientPhone: input.patientPhone || input.patient_phone || input.phone || patient.second || '—',
+    reason: input.reason || (bookedVia === 'ai' || bookedVia === 'voice' || input.patientInfo ? 'AI Voice Booking' : ''),
+    bookedVia: VALID_BOOKING_SOURCES.includes(bookedVia as BookedSlot['bookedVia']) ? bookedVia as BookedSlot['bookedVia'] : (input.patientInfo ? 'ai' : 'form'),
+    createdAt: input.createdAt || input.created_at || new Date().toISOString(),
+    status: VALID_STATUSES.includes(status as BookedSlot['status']) ? status as BookedSlot['status'] : 'confirmed',
+  };
+}
+
+function persistAppointments(appointments: BookedSlot[]) {
+  cachedAppointments = appointments;
+  localStorage.setItem(KEY, JSON.stringify(appointments));
+}
+
+function broadcastAppointmentsUpdated() {
+  window.dispatchEvent(new Event('appointments-updated'));
+  window.dispatchEvent(new Event('appointments-updated-local'));
+}
+
+export function getLocalAppointments(): BookedSlot[] {
+  try {
+    const stored = JSON.parse(localStorage.getItem(KEY) || '[]');
+    const normalized = Array.isArray(stored) ? stored.map((item) => normalizeAppointment(item)) : [];
+    cachedAppointments = normalized;
+    return normalized;
+  } catch {
+    return [];
+  }
+}
+
+let cachedAppointments: BookedSlot[] = getLocalAppointments();
 
 export async function fetchAppointments(): Promise<BookedSlot[]> {
-  if (!supabase) return cachedAppointments;
-  
-  const { data, error } = await supabase.from('appointments').select('*').order('createdAt', { ascending: false });
-  if (error) {
-    console.error("Supabase fetch error:", error);
-    return cachedAppointments;
+  if (supabase) {
+    const { data, error } = await supabase.from('appointments').select('*');
+    if (error) {
+      console.error("Supabase fetch error:", error);
+      return getLocalAppointments();
+    }
+    if (data) {
+      const local = getLocalAppointments();
+      const normalizedDb = data.map((item) => normalizeAppointment(item));
+      const dbIds = new Set(normalizedDb.map(d => d.id));
+      const localOnly = local.filter(l => !dbIds.has(l.id));
+      
+      persistAppointments(
+        [...localOnly, ...normalizedDb].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      );
+      return cachedAppointments;
+    }
   }
-  if (data) {
-    cachedAppointments = data;
-    window.dispatchEvent(new Event('appointments-updated'));
-    return data;
-  }
-  return cachedAppointments;
+  const local = getLocalAppointments();
+  cachedAppointments = local;
+  return local;
 }
 
 export async function saveAppointment(slot: BookedSlot): Promise<void> {
+  const normalizedSlot = normalizeAppointment(slot);
+
   if (supabase) {
-    const { error } = await supabase.from('appointments').insert([slot]);
+    const { error } = await supabase.from('appointments').insert([normalizedSlot]);
     if (error) {
       console.error("Supabase insert error:", error);
       alert("Failed to save to cloud database. Please check Supabase configuration.");
@@ -60,9 +132,8 @@ export async function saveAppointment(slot: BookedSlot): Promise<void> {
     }
   }
 
-  // Update memory cache
-  cachedAppointments = [slot, ...cachedAppointments.filter(a => a.id !== slot.id)].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  window.dispatchEvent(new Event('appointments-updated'));
+  persistAppointments([normalizedSlot, ...cachedAppointments.filter(a => a.id !== normalizedSlot.id)]);
+  broadcastAppointmentsUpdated();
 }
 
 export async function updateAppointmentStatus(id: string, status: BookedSlot['status']): Promise<void> {
@@ -71,8 +142,8 @@ export async function updateAppointmentStatus(id: string, status: BookedSlot['st
     if (error) console.error("Supabase update error:", error);
   }
 
-  cachedAppointments = cachedAppointments.map(a => a.id === id ? { ...a, status } : a);
-  window.dispatchEvent(new Event('appointments-updated'));
+  persistAppointments(cachedAppointments.map(a => a.id === id ? { ...a, status } : a));
+  broadcastAppointmentsUpdated();
 }
 
 export async function deleteAppointment(id: string): Promise<void> {
@@ -81,8 +152,8 @@ export async function deleteAppointment(id: string): Promise<void> {
     if (error) console.error("Supabase delete error:", error);
   }
 
-  cachedAppointments = cachedAppointments.filter(a => a.id !== id);
-  window.dispatchEvent(new Event('appointments-updated'));
+  persistAppointments(cachedAppointments.filter(a => a.id !== id));
+  broadcastAppointmentsUpdated();
 }
 
 export function isSlotBooked(date: string, time: string): boolean {

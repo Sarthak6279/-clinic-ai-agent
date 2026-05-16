@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { fetchAppointments, getLocalAppointments, updateAppointmentStatus, deleteAppointment, type BookedSlot } from './store';
+import { APPOINTMENTS_STORAGE_KEY, fetchAppointments, getLocalAppointments, updateAppointmentStatus, deleteAppointment, type BookedSlot } from './store';
+
+const FILTERS = ['all', 'confirmed', 'completed', 'cancelled'] as const;
 
 
 export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
@@ -18,15 +20,26 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   };
 
   useEffect(() => {
-    reload();
+    const initialLoad = window.setTimeout(() => { void reload(); }, 0);
     window.addEventListener('appointments-updated', reload);
     
     const updateLocal = () => setAppointments(getLocalAppointments());
+    const syncFromStorage = (event: StorageEvent) => {
+      if (event.key === APPOINTMENTS_STORAGE_KEY) {
+        void reload();
+      }
+    };
+
     window.addEventListener('appointments-updated-local', updateLocal);
+    window.addEventListener('storage', syncFromStorage);
+    window.addEventListener('focus', reload);
     
     return () => {
+      window.clearTimeout(initialLoad);
       window.removeEventListener('appointments-updated', reload);
       window.removeEventListener('appointments-updated-local', updateLocal);
+      window.removeEventListener('storage', syncFromStorage);
+      window.removeEventListener('focus', reload);
     };
   }, []);
 
@@ -92,15 +105,13 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
             style={{ padding: '0.6rem 1rem', borderRadius: 6, border: '1px solid #CBD5E1', fontFamily: 'inherit', fontSize: '0.9rem', color: '#0F172A', outline: 'none' }}
           />
-          <div style={{ display: 'flex', background: '#F1F5F9', borderRadius: 6, padding: '0.25rem' }}>
-            {['all', 'confirmed', 'completed', 'cancelled'].map(f => (
-              <button key={f} onClick={() => setFilter(f as any)}
-                style={{ padding: '0.4rem 1rem', borderRadius: 4, border: 'none', fontFamily: 'inherit', fontWeight: 500, fontSize: '0.85rem', cursor: 'pointer', background: filter === f ? '#FFFFFF' : 'transparent', color: filter === f ? '#0F172A' : '#64748B', boxShadow: filter === f ? '0 1px 2px rgba(0,0,0,0.05)' : 'none', transition: 'all 0.2s' }}>
-                {f.charAt(0).toUpperCase() + f.slice(1)}
-              </button>
-            ))}
-          </div>
-          {selectedDate && <button onClick={() => setSelectedDate('')} style={{ padding: '0.6rem 1rem', borderRadius: 6, border: '1px solid #E2E8F0', color: '#64748B', background: '#FFF', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.85rem', fontWeight: 500 }}>Clear Date</button>}
+          {FILTERS.map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              style={{ padding: '0.5rem 1.1rem', borderRadius: 20, border: '1.5px solid', fontFamily: 'inherit', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', background: filter === f ? '#0a4d68' : 'white', color: filter === f ? 'white' : '#0a4d68', borderColor: filter === f ? '#0a4d68' : 'rgba(5,191,219,0.3)' }}>
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+          {selectedDate && <button onClick={() => setSelectedDate('')} style={{ padding: '0.5rem 1rem', borderRadius: 20, border: '1.5px solid #e74c3c', color: '#e74c3c', background: 'white', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.82rem', fontWeight: 600 }}>✕ Clear Date</button>}
           
           <div style={{ flex: 1 }} />
           <button onClick={reload} disabled={refreshing} style={{ padding: '0.6rem 1.25rem', borderRadius: 6, border: 'none', background: '#0F172A', color: '#FFFFFF', fontWeight: 500, fontSize: '0.9rem', cursor: refreshing ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'opacity 0.2s', opacity: refreshing ? 0.7 : 1 }}>

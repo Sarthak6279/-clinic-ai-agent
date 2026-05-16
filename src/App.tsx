@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { useVoiceAgent, type Appointment } from './useVoiceAgent';
+import { useVoiceAgent, type AgentState, type Appointment } from './useVoiceAgent';
 import { saveAppointment, fetchAppointments, generateId, type BookedSlot } from './store';
 import AdminLogin from './AdminLogin';
 import AdminDashboard from './AdminDashboard';
 import BookingCalendar from './BookingCalendar';
+import { Menu, PhoneCall, X } from 'lucide-react';
 
 const FAQS = [
   { q: "What are the consultation timings?", a: "Dr. Chawalani is available Monday to Saturday, 10:00 AM – 2:00 PM and 5:00 PM – 8:00 PM. Sunday by appointment only." },
@@ -26,6 +27,13 @@ const TESTIMONIALS = [
   { name: "Rajesh S.", initial: "R", stars: 5, text: "Dr. Chawalani diagnosed my fatty liver condition when other doctors missed it. His expertise and patient approach are exceptional. Highly recommended!", since: "Patient since 2020" },
   { name: "Meera P.", initial: "M", stars: 5, text: "Very knowledgeable and explains everything clearly. My liver condition has improved significantly under his care. The AI booking is also very convenient!", since: "Patient since 2021" },
   { name: "Suresh K.", initial: "S", stars: 4, text: "Professional, punctual, and genuinely caring. Treated my chronic acidity effectively. The clinic is well-organized and the staff is helpful.", since: "Patient since 2022" },
+];
+
+const TRUST_POINTS = [
+  { icon: "🛡️", title: "Verified Specialist", text: "12+ years in hepatology and gastroenterology care" },
+  { icon: "📍", title: "Prime Jabalpur Location", text: "In front of Reliance Fresh, Madan Mahal" },
+  { icon: "📞", title: "Fast Booking Assistance", text: "Call-first booking with quick response during clinic hours" },
+  { icon: "⭐", title: "Trusted by Patients", text: "4.0/5 rating from 650+ reviews" },
 ];
 
 function useCountUp(target: number, duration = 1500) {
@@ -58,6 +66,13 @@ function useFadeUp() {
 }
 
 function Nav({ onBook }: { onBook: () => void }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const closeMenu = () => setMobileOpen(false);
+  const handleBookClick = () => {
+    closeMenu();
+    onBook();
+  };
+
   return (
     <nav className="nav">
       <div className="nav-brand">
@@ -66,6 +81,9 @@ function Nav({ onBook }: { onBook: () => void }) {
           <div className="nav-brand-text">Dr. Romesh Chawalani<span>Hepatologist &amp; Gastroenterologist</span></div>
         </div>
       </div>
+      <button className="nav-menu-btn" onClick={() => setMobileOpen(v => !v)} aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}>
+        {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+      </button>
       <div className="nav-links">
         <a className="nav-link" href="#about">About</a>
         <a className="nav-link" href="#services">Services</a>
@@ -73,7 +91,16 @@ function Nav({ onBook }: { onBook: () => void }) {
         <a className="nav-link" href="#testimonials">Reviews</a>
         <a className="nav-link" href="#contact">Contact</a>
         <a className="nav-link" href="#admin" style={{ color: 'var(--text-muted)', fontSize: '0.82rem', borderLeft: '1px solid var(--border)', paddingLeft: '1.5rem' }}>Doctor Portal</a>
-        <button className="nav-cta" onClick={onBook}>Book Appointment</button>
+        <button className="nav-cta" onClick={onBook}><PhoneCall size={16} /> Call to Book</button>
+      </div>
+      <div className={`nav-mobile-menu ${mobileOpen ? 'open' : ''}`}>
+        <a className="nav-mobile-link" href="#about" onClick={closeMenu}>About</a>
+        <a className="nav-mobile-link" href="#services" onClick={closeMenu}>Services</a>
+        <a className="nav-mobile-link" href="#booking" onClick={closeMenu}>Book</a>
+        <a className="nav-mobile-link" href="#testimonials" onClick={closeMenu}>Reviews</a>
+        <a className="nav-mobile-link" href="#contact" onClick={closeMenu}>Contact</a>
+        <a className="nav-mobile-link" href="#admin" onClick={closeMenu}>Doctor Portal</a>
+        <button className="nav-mobile-cta" onClick={handleBookClick}><PhoneCall size={16} /> Start Call Booking</button>
       </div>
     </nav>
   );
@@ -85,7 +112,7 @@ function Hero({ onBook }: { onBook: () => void }) {
       <div className="hero-left">
         <div className="hero-tag"><span className="hero-tag-dot" />Now Accepting Appointments</div>
         <h1 className="hero-title">Specialist Care for<br /><span>Liver &amp; Digestive</span><br />Health</h1>
-        <p className="hero-desc">With 12+ years of clinical expertise, Dr. Romesh Chawalani provides evidence-based Hepatology and Gastroenterology care in Jabalpur — personalized to every patient.</p>
+        <p className="hero-desc">Evidence-based hepatology and gastroenterology care by Dr. Romesh Chawalani in Madan Mahal, Jabalpur. Clear guidance, structured treatment plans, and patient-first consultations.</p>
         <div className="hero-actions">
           <button className="btn-primary" onClick={onBook}>Book an Appointment</button>
           <a href="#services" className="btn-secondary">View Services</a>
@@ -98,23 +125,43 @@ function Hero({ onBook }: { onBook: () => void }) {
         </div>
       </div>
       <div className="hero-right">
-        <div className="hero-card">
-          <div className="hero-card-header"><div className="hero-card-icon teal">📊</div><span className="hero-card-badge">+12% this month</span></div>
-          <div className="hero-card-val">5,248</div>
-          <div className="hero-card-label">Total Patients Treated</div>
-        </div>
-        <div className="hero-card">
-          <div className="hero-card-header"><div className="hero-card-icon green">📅</div><span className="hero-card-badge">Today</span></div>
-          <div className="hero-card-mini">
-            <div className="hero-card-avatar">R</div>
-            <div><div className="hero-card-info-name">Next: Rajesh S.</div><div className="hero-card-info-time">11:30 AM — Liver Consult</div></div>
-            <div className="hero-card-status" />
+          <div className="hero-card">
+            <div className="hero-card-header"><div className="hero-card-icon teal">📊</div><span className="hero-card-badge">Today at Clinic</span></div>
+            <div className="hero-card-val">5,000+</div>
+            <div className="hero-card-label">Consultations Completed</div>
           </div>
-        </div>
-        <div className="hero-card">
-          <div className="hero-card-header"><div className="hero-card-icon blue">⭐</div><span className="hero-card-badge">650 Reviews</span></div>
-          <div className="hero-card-val">4.0 / 5.0</div>
-          <div className="hero-card-label">Patient Satisfaction Score</div>
+          <div className="hero-card">
+            <div className="hero-card-header"><div className="hero-card-icon green">📅</div><span className="hero-card-badge">Consultation Queue</span></div>
+            <div className="hero-card-mini">
+              <div className="hero-card-avatar">R</div>
+              <div><div className="hero-card-info-name">11:30 AM — Confirmed</div><div className="hero-card-info-time">Liver & GI follow-up</div></div>
+              <div className="hero-card-status" />
+            </div>
+          </div>
+          <div className="hero-card">
+            <div className="hero-card-header"><div className="hero-card-icon blue">⭐</div><span className="hero-card-badge">Care Quality</span></div>
+            <div className="hero-card-val">4.0 / 5.0</div>
+            <div className="hero-card-label">Patient Satisfaction</div>
+          </div>
+      </div>
+    </section>
+  );
+}
+
+function TrustStrip() {
+  return (
+    <section className="trust-strip">
+      <div className="container">
+        <div className="trust-grid">
+          {TRUST_POINTS.map((point, idx) => (
+            <div key={idx} className="trust-item">
+              <div className="trust-icon">{point.icon}</div>
+              <div>
+                <div className="trust-title">{point.title}</div>
+                <div className="trust-text">{point.text}</div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -196,14 +243,14 @@ function Insights() {
       <div className="container">
         <div className="section-label fade-up" ref={ref}>Clinic at a Glance</div>
         <div className="section-title" style={{ color: 'white', marginBottom: '0.75rem' }}>Real-Time Clinic Metrics</div>
-        <p className="section-desc" style={{ color: 'rgba(255,255,255,0.65)', marginBottom: '2.5rem' }}>A snapshot of the clinic's performance and patient outcomes.</p>
-        <div className="insights-grid">
-          {[
-            { icon: "👥", val: "5,248", label: "Patients Treated", change: "+12% this month" },
-            { icon: "📅", val: "18", label: "Appointments Today", change: "Fully booked 3 days/week" },
-            { icon: "⭐", val: "4.0/5", label: "Patient Rating", change: "650 verified reviews" },
-            { icon: "⚡", val: "5 mins", label: "Response Time", change: "Fastest in Jabalpur" },
-          ].map((c, i) => (
+         <p className="section-desc" style={{ color: 'rgba(255,255,255,0.65)', marginBottom: '2.5rem' }}>A quick summary of patient volume, booking pace, and consultation quality.</p>
+         <div className="insights-grid">
+           {[
+             { icon: "👥", val: "5,000+", label: "Patients Treated", change: "12+ years of practice" },
+             { icon: "📅", val: "22", label: "Daily Slots", change: "30-minute appointments" },
+             { icon: "⭐", val: "4.0/5", label: "Patient Rating", change: "650+ verified reviews" },
+             { icon: "⚡", val: "~5 min", label: "Booking Response", change: "During working hours" },
+           ].map((c, i) => (
             <div key={i} className="insight-card">
               <div className="insight-icon">{c.icon}</div>
               <div className="insight-val">{c.val}</div>
@@ -231,7 +278,7 @@ function Booking({ onBook, onOpenCalendar }: { onBook: () => void; onOpenCalenda
             <p className="section-desc">Choose from 22 daily slots (30 min each, 9 AM – 7:30 PM). Book via Voice AI or select a slot from the calendar.</p>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
               <button className="btn-primary" onClick={onOpenCalendar}>Open Booking Calendar</button>
-              <button className="btn-secondary" onClick={onBook}>Voice AI Booking</button>
+              <button className="btn-secondary" onClick={onBook}><PhoneCall size={16} /> Call Assistant Booking</button>
             </div>
             <div style={{ background: 'var(--surface2)', borderRadius: 'var(--radius)', padding: '1.25rem', border: '1px solid var(--border)' }}>
               <div style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: '0.4rem', fontSize: '0.95rem' }}>Clinic Hours</div>
@@ -366,14 +413,14 @@ function Contact() {
               { icon: "📞", label: "Phone", val: "07383371238" },
               { icon: "🕐", label: "Timings", val: "Mon–Sat: 10AM–2PM & 5PM–8PM" },
               { icon: "💰", label: "Consultation Fee", val: "₹400 (Clinic) · ₹300 (Online)" },
-              { icon: "⚡", label: "Response Time", val: "Responds in approx. 5 minutes" },
+               { icon: "⚡", label: "Response Time", val: "Approx. 5 minutes during clinic hours" },
             ].map((c, i) => (
               <div key={i} className="contact-item">
                 <div className="contact-item-icon">{c.icon}</div>
                 <div><div className="contact-item-label">{c.label}</div><div className="contact-item-val">{c.val}</div></div>
               </div>
             ))}
-            <div className="map-placeholder">📍 Madan Mahal, Jabalpur — Map Coming Soon</div>
+            <div className="map-placeholder">📍 In Front of Reliance Fresh, Madan Mahal, Jabalpur</div>
           </div>
           <div className="booking-card">
             <div style={{ fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem' }}>Send an Enquiry</div>
@@ -425,7 +472,17 @@ function Footer() {
   );
 }
 
-function VoiceWidget({ isOpen, onClose, agentState, transcript }: any) {
+function VoiceWidget({
+  isOpen,
+  onClose,
+  agentState,
+  transcript
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  agentState: AgentState;
+  transcript: string;
+}) {
   useEffect(() => {
     if (agentState === 'IDLE' && isOpen) {
       const t = setTimeout(onClose, 500);
@@ -433,45 +490,29 @@ function VoiceWidget({ isOpen, onClose, agentState, transcript }: any) {
     }
   }, [agentState, isOpen, onClose]);
 
-  const [callTime, setCallTime] = useState(0);
-  useEffect(() => {
-    let timer: any;
-    if (isOpen && agentState !== 'IDLE' && agentState !== 'COMPLETED') {
-      timer = setInterval(() => setCallTime(t => t + 1), 1000);
-    } else if (!isOpen) {
-      setCallTime(0);
-    }
-    return () => clearInterval(timer);
-  }, [isOpen, agentState]);
-
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60).toString().padStart(2, '0');
-    const s = (secs % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
+  const statusText: Record<AgentState, string> = {
+    IDLE: 'Connecting your call...',
+    SPEAKING: 'Assistant is speaking...',
+    LISTENING: 'Listening to your voice...',
+    PROCESSING: 'Confirming details...',
+    COMPLETED: '✅ Appointment booked'
   };
-
-  const statusText: Record<string, string> = {
-    IDLE: 'Connecting...', SPEAKING: 'Speaking...', LISTENING: 'Listening...', PROCESSING: 'Processing...', COMPLETED: 'Call Ended'
+  const stepLabel: Record<AgentState, string> = {
+    IDLE: 'Please stay on the line',
+    SPEAKING: 'We are guiding your booking',
+    LISTENING: 'You can speak naturally',
+    PROCESSING: 'One moment while we save this',
+    COMPLETED: 'Call ending shortly'
   };
 
   if (!isOpen) return null;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '"Inter", -apple-system, sans-serif' }}>
-      <div style={{ width: '100%', maxWidth: 360, height: '80vh', maxHeight: 700, background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)', borderRadius: 40, border: '4px solid #334155', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1.5rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', position: 'relative', overflow: 'hidden' }}>
-        
-        {/* Glowing pulse effect when speaking/listening */}
-        <div style={{ position: 'absolute', top: '15%', width: 250, height: 250, background: agentState === 'SPEAKING' ? 'rgba(59, 130, 246, 0.2)' : agentState === 'LISTENING' ? 'rgba(16, 185, 129, 0.2)' : 'transparent', borderRadius: '50%', filter: 'blur(40px)', transition: 'background 0.5s ease', pointerEvents: 'none' }} />
-
-        {/* Top: Caller Info */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, marginTop: '2rem' }}>
-          <div style={{ width: 110, height: 110, borderRadius: '50%', background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem', marginBottom: '1.5rem', boxShadow: '0 10px 25px rgba(59, 130, 246, 0.4)', border: '3px solid rgba(255,255,255,0.1)' }}>
-            🤖
-          </div>
-          <h2 style={{ margin: 0, color: '#fff', fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.5px' }}>Dr. Romesh Clinic</h2>
-          <div style={{ color: agentState === 'COMPLETED' ? '#ef4444' : '#94a3b8', fontSize: '0.95rem', marginTop: '0.4rem', fontWeight: 500 }}>
-            {agentState === 'COMPLETED' ? statusText[agentState] : formatTime(callTime)}
-          </div>
+    <div className={`widget-overlay ${isOpen ? 'open' : ''}`} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="widget">
+        <button className="widget-close" onClick={onClose}>✕</button>
+        <div className={`widget-avatar ${agentState === 'SPEAKING' ? 'speaking' : ''}`}>
+          {agentState === 'LISTENING' ? '🎧' : agentState === 'COMPLETED' ? '✅' : '📞'}
         </div>
 
         {/* Middle: Transcript & Status */}
@@ -499,6 +540,7 @@ function VoiceWidget({ isOpen, onClose, agentState, transcript }: any) {
             💬
           </button>
         </div>
+        <div className="widget-step-label">Dr. Romesh Clinic · Call Assistant</div>
       </div>
     </div>
   );
@@ -584,6 +626,7 @@ export default function App() {
     <>
       <Nav onBook={handleOpenCall} />
       <Hero onBook={handleOpenCall} />
+      <TrustStrip />
       <Profile />
       <Services />
       <Insights />
@@ -597,8 +640,11 @@ export default function App() {
       {/* No floating Doctor Login pill - moved to nav */}
 
       <div className="floating-voice">
-        <button className="floating-voice-btn" onClick={handleOpenCall} title="Book via Voice AI">&#127908;</button>
-        <span className="floating-voice-label">Book Now</span>
+        <button className="floating-voice-btn" onClick={handleOpenCall} title="Start call booking">
+          <PhoneCall size={18} />
+          <span>Call to Book</span>
+        </button>
+        <span className="floating-voice-label">Available now</span>
       </div>
 
       {/* Calendar Modal */}
