@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { fetchAppointments, getLocalAppointments, updateAppointmentStatus, deleteAppointment, type BookedSlot } from './store';
+import { APPOINTMENTS_STORAGE_KEY, fetchAppointments, getLocalAppointments, updateAppointmentStatus, deleteAppointment, type BookedSlot } from './store';
+
+const FILTERS = ['all', 'confirmed', 'completed', 'cancelled'] as const;
 
 function statusColor(s: BookedSlot['status']) {
   return s === 'confirmed' ? '#00a896' : s === 'completed' ? '#0e6d8c' : '#e74c3c';
@@ -25,15 +27,26 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   };
 
   useEffect(() => {
-    reload();
+    const initialLoad = window.setTimeout(() => { void reload(); }, 0);
     window.addEventListener('appointments-updated', reload);
     
     const updateLocal = () => setAppointments(getLocalAppointments());
+    const syncFromStorage = (event: StorageEvent) => {
+      if (event.key === APPOINTMENTS_STORAGE_KEY) {
+        void reload();
+      }
+    };
+
     window.addEventListener('appointments-updated-local', updateLocal);
+    window.addEventListener('storage', syncFromStorage);
+    window.addEventListener('focus', reload);
     
     return () => {
+      window.clearTimeout(initialLoad);
       window.removeEventListener('appointments-updated', reload);
       window.removeEventListener('appointments-updated-local', updateLocal);
+      window.removeEventListener('storage', syncFromStorage);
+      window.removeEventListener('focus', reload);
     };
   }, []);
 
@@ -96,8 +109,8 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
             style={{ padding: '0.65rem 1rem', borderRadius: 10, border: '1.5px solid rgba(5,191,219,0.25)', fontFamily: 'inherit', fontSize: '0.9rem', color: '#1a2332', outline: 'none' }}
           />
-          {['all', 'confirmed', 'completed', 'cancelled'].map(f => (
-            <button key={f} onClick={() => setFilter(f as any)}
+          {FILTERS.map(f => (
+            <button key={f} onClick={() => setFilter(f)}
               style={{ padding: '0.5rem 1.1rem', borderRadius: 20, border: '1.5px solid', fontFamily: 'inherit', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', background: filter === f ? '#0a4d68' : 'white', color: filter === f ? 'white' : '#0a4d68', borderColor: filter === f ? '#0a4d68' : 'rgba(5,191,219,0.3)' }}>
               {f.charAt(0).toUpperCase() + f.slice(1)}
             </button>

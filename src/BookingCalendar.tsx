@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ALL_SLOTS, isSlotBooked, saveAppointment, generateId, type BookedSlot } from './store';
+import { ALL_SLOTS, APPOINTMENTS_STORAGE_KEY, isSlotBooked, saveAppointment, generateId, type BookedSlot } from './store';
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
@@ -40,9 +40,22 @@ export default function BookingCalendar({ onClose }: { onClose?: () => void }) {
       });
       setBookedMap({ ...map });
     };
+    const syncFromStorage = (event: StorageEvent) => {
+      if (event.key === APPOINTMENTS_STORAGE_KEY) {
+        rebuild();
+      }
+    };
+
     rebuild();
     window.addEventListener('appointments-updated', rebuild);
-    return () => window.removeEventListener('appointments-updated', rebuild);
+    window.addEventListener('appointments-updated-local', rebuild);
+    window.addEventListener('storage', syncFromStorage);
+
+    return () => {
+      window.removeEventListener('appointments-updated', rebuild);
+      window.removeEventListener('appointments-updated-local', rebuild);
+      window.removeEventListener('storage', syncFromStorage);
+    };
   }, [selectedDate]);
 
   const daysInMonth = getDaysInMonth(year, month);
@@ -67,7 +80,7 @@ export default function BookingCalendar({ onClose }: { onClose?: () => void }) {
     e.preventDefault();
     if (!form.name || !form.phone) return;
     setSubmitting(true);
-    setTimeout(() => {
+    setTimeout(async () => {
       const apt: BookedSlot = {
         id: generateId(),
         date: selectedDate,
@@ -79,7 +92,7 @@ export default function BookingCalendar({ onClose }: { onClose?: () => void }) {
         createdAt: new Date().toISOString(),
         status: 'confirmed',
       };
-      saveAppointment(apt);
+      await saveAppointment(apt);
       setSubmitting(false);
       setStep('success');
     }, 800);
