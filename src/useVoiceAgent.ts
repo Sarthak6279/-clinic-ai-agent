@@ -204,9 +204,10 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
 2. एक बार में सिर्फ एक सवाल पूछो।
 3. रविवार क्लिनिक बंद है। बुक्ड स्लॉट पर appointment नहीं।
 4. सभी 4 जानकारी मिलने पर संक्षेप में बताओ और हाँ/नहीं पूछो।
-5. जब यूजर तारीख या समय बताए, उसे YYYY-MM-DD / H:MM AM/PM format में parse करके नीचे दिए format में JSON दो (बोलो नहीं):
+5. समय हमेशा हिंदी में बोलो — जैसे "तीन बजे", "साढ़े तीन बजे", "दोपहर दो बजे"। कभी "3:00 PM" या "AM/PM" मत बोलो।
+6. जब यूजर तारीख या समय बताए, उसे SILENTLY parse करो और ONLY यह JSON दो (बोलो नहीं, सिर्फ JSON):
    {"date":"YYYY-MM-DD"} या {"time":"H:MM AM/PM"}
-6. confirmation पर ONLY यह JSON:
+7. confirmation पर ONLY यह JSON (बाकी कुछ नहीं):
    {"status":"BOOKED","name":"...","phone":"...","date":"YYYY-MM-DD","time":"H:MM AM/PM"}
 
 COLLECTED DATA — इन्हें दोबारा मत पूछो:
@@ -216,8 +217,8 @@ COLLECTED DATA — इन्हें दोबारा मत पूछो:
 - समय: ${c.time ? `✓ ${c.time}` : 'अभी नहीं मिला'}
 ${slotStatus ? `- स्लॉट स्थिति: ${slotStatus}` : ''}
 
-NEXT QUESTION (सिर्फ यही पूछो):
-${!c.name ? '→ नाम पूछो' : !c.phone ? '→ मोबाइल नंबर पूछो' : !c.date ? '→ तारीख पूछो: "आप किस तारीख को आना चाहते हैं?"' : !c.time ? '→ समय पूछो: "आप किस समय आना चाहते हैं?"' : '→ सभी जानकारी मिल गई है। संक्षेप में confirm करो।'}
+ABHI YEH PUCHHO (sirf yeh ek sentence bolo, kuch aur nahi):
+${!c.name ? '"कृपया अपना नाम बताइए।"' : !c.phone ? '"आपका मोबाइल नंबर क्या है?"' : !c.date ? '"आप किस तारीख को आना चाहते हैं?"' : !c.time ? '"आप किस समय आना चाहते हैं?"' : '"सभी जानकारी मिल गई है — confirm करो।"'}
 
 आज: ${todayStr} | पहले से बुक: ${bookedList}`;
   };
