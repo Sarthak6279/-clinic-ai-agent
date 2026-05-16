@@ -127,6 +127,8 @@ export async function saveAppointment(slot: BookedSlot): Promise<void> {
     const { error } = await supabase.from('appointments').insert([normalizedSlot]);
     if (error) {
       console.error("Supabase insert error:", error);
+      alert("Failed to save to cloud database. Please check Supabase configuration.");
+      return; // Do not save locally if cloud fails!
     }
   }
 
@@ -156,6 +158,11 @@ export async function deleteAppointment(id: string): Promise<void> {
 
 export function isSlotBooked(date: string, time: string): boolean {
   return cachedAppointments.some(a => a.date === date && a.time === time && a.status !== 'cancelled');
+}
+
+// Ensure anyone trying to read local cache just gets the memory array
+export function getLocalAppointments(): BookedSlot[] {
+  return cachedAppointments;
 }
 
 export function generateId(): string {

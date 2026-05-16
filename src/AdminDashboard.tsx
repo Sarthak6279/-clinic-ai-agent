@@ -3,13 +3,6 @@ import { APPOINTMENTS_STORAGE_KEY, fetchAppointments, getLocalAppointments, upda
 
 const FILTERS = ['all', 'confirmed', 'completed', 'cancelled'] as const;
 
-function statusColor(s: BookedSlot['status']) {
-  return s === 'confirmed' ? '#00a896' : s === 'completed' ? '#0e6d8c' : '#e74c3c';
-}
-
-function statusBg(s: BookedSlot['status']) {
-  return s === 'confirmed' ? 'rgba(0,168,150,0.1)' : s === 'completed' ? 'rgba(14,109,140,0.1)' : 'rgba(231,76,60,0.1)';
-}
 
 export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [appointments, setAppointments] = useState<BookedSlot[]>([]);
@@ -69,45 +62,48 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f0f7f9', fontFamily: 'Outfit, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: '"Inter", -apple-system, sans-serif', color: '#0F172A' }}>
       {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg,#0a4d68,#0e6d8c)', padding: '1rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ color: 'white' }}>
-          <div style={{ fontWeight: 800, fontSize: '1.25rem' }}>🩺 Dr. Romesh Chawalani — Admin Dashboard</div>
-          <div style={{ fontSize: '0.82rem', opacity: 0.75 }}>Hepatologist & Gastroenterologist · Madan Mahal, Jabalpur</div>
+      <div style={{ background: '#FFFFFF', borderBottom: '1px solid #E2E8F0', padding: '1rem 2.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ width: 40, height: 40, background: '#0F172A', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontWeight: 700, letterSpacing: '-0.5px' }}>
+            RC
+          </div>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: '1.1rem', letterSpacing: '-0.3px', color: '#0F172A' }}>Dr. Romesh Chawalani</div>
+            <div style={{ fontSize: '0.8rem', color: '#64748B', fontWeight: 500 }}>Clinic Administration</div>
+          </div>
         </div>
-        <button onClick={onLogout} style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, padding: '0.5rem 1.25rem', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
-          🚪 Logout
+        <button onClick={onLogout} style={{ background: '#F1F5F9', color: '#334155', border: '1px solid #E2E8F0', borderRadius: 6, padding: '0.5rem 1rem', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, fontSize: '0.85rem', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#E2E8F0'} onMouseLeave={e => e.currentTarget.style.background = '#F1F5F9'}>
+          Sign Out
         </button>
       </div>
 
-      <div style={{ padding: '2rem', maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ padding: '2.5rem', maxWidth: 1280, margin: '0 auto' }}>
         {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.25rem', marginBottom: '2.5rem' }}>
           {[
-            { label: 'Total Bookings', val: stats.total, color: '#0a4d68', icon: '📋' },
-            { label: 'Confirmed', val: stats.confirmed, color: '#00a896', icon: '✅' },
-            { label: 'Completed', val: stats.completed, color: '#0e6d8c', icon: '🎯' },
-            { label: 'Cancelled', val: stats.cancelled, color: '#e74c3c', icon: '❌' },
-            { label: 'Today', val: stats.today, color: '#f59e0b', icon: '📅' },
+            { label: 'Total Bookings', val: stats.total, color: '#3B82F6' },
+            { label: 'Confirmed', val: stats.confirmed, color: '#10B981' },
+            { label: 'Completed', val: stats.completed, color: '#6366F1' },
+            { label: 'Cancelled', val: stats.cancelled, color: '#EF4444' },
           ].map((s, i) => (
-            <div key={i} style={{ background: 'white', borderRadius: 16, padding: '1.25rem', border: '1px solid rgba(5,191,219,0.15)', boxShadow: '0 4px 16px rgba(10,77,104,0.07)' }}>
-              <div style={{ fontSize: '1.6rem', marginBottom: '0.4rem' }}>{s.icon}</div>
-              <div style={{ fontSize: '2rem', fontWeight: 800, color: s.color }}>{s.val}</div>
-              <div style={{ fontSize: '0.78rem', color: '#6b7f8e' }}>{s.label}</div>
+            <div key={i} style={{ background: '#FFFFFF', borderRadius: 12, padding: '1.5rem', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+              <div style={{ fontSize: '0.8rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.5rem' }}>{s.label}</div>
+              <div style={{ fontSize: '2.25rem', fontWeight: 700, color: s.color, letterSpacing: '-1px' }}>{s.val}</div>
             </div>
           ))}
         </div>
 
-        {/* Filters */}
-        <div style={{ background: 'white', borderRadius: 16, padding: '1.25rem 1.5rem', border: '1px solid rgba(5,191,219,0.15)', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* Filters & Actions */}
+        <div style={{ background: '#FFFFFF', borderRadius: 12, padding: '1.25rem', border: '1px solid #E2E8F0', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
           <input
-            placeholder="🔍 Search patient name or phone..."
+            placeholder="Search patient name or phone..."
             value={search} onChange={e => setSearch(e.target.value)}
-            style={{ flex: 1, minWidth: 220, padding: '0.65rem 1rem', borderRadius: 10, border: '1.5px solid rgba(5,191,219,0.25)', fontFamily: 'inherit', fontSize: '0.9rem', color: '#1a2332', outline: 'none' }}
+            style={{ flex: 1, minWidth: 260, padding: '0.6rem 1rem', borderRadius: 6, border: '1px solid #CBD5E1', fontFamily: 'inherit', fontSize: '0.9rem', color: '#0F172A', outline: 'none' }}
           />
           <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
-            style={{ padding: '0.65rem 1rem', borderRadius: 10, border: '1.5px solid rgba(5,191,219,0.25)', fontFamily: 'inherit', fontSize: '0.9rem', color: '#1a2332', outline: 'none' }}
+            style={{ padding: '0.6rem 1rem', borderRadius: 6, border: '1px solid #CBD5E1', fontFamily: 'inherit', fontSize: '0.9rem', color: '#0F172A', outline: 'none' }}
           />
           {FILTERS.map(f => (
             <button key={f} onClick={() => setFilter(f)}
@@ -118,79 +114,80 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           {selectedDate && <button onClick={() => setSelectedDate('')} style={{ padding: '0.5rem 1rem', borderRadius: 20, border: '1.5px solid #e74c3c', color: '#e74c3c', background: 'white', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.82rem', fontWeight: 600 }}>✕ Clear Date</button>}
           
           <div style={{ flex: 1 }} />
-          <button onClick={reload} disabled={refreshing} style={{ padding: '0.65rem 1.25rem', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#0a4d68,#05bfdb)', color: 'white', fontWeight: 600, cursor: refreshing ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'opacity 0.2s', opacity: refreshing ? 0.7 : 1 }}>
-            {refreshing ? '⏳ Refreshing...' : '🔄 Refresh Data'}
+          <button onClick={reload} disabled={refreshing} style={{ padding: '0.6rem 1.25rem', borderRadius: 6, border: 'none', background: '#0F172A', color: '#FFFFFF', fontWeight: 500, fontSize: '0.9rem', cursor: refreshing ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'opacity 0.2s', opacity: refreshing ? 0.7 : 1 }}>
+            {refreshing ? 'Syncing...' : 'Sync Database'}
           </button>
         </div>
 
         {/* Appointments Table */}
-        <div style={{ background: 'white', borderRadius: 16, border: '1px solid rgba(5,191,219,0.15)', overflow: 'hidden', boxShadow: '0 4px 16px rgba(10,77,104,0.07)' }}>
-          <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(5,191,219,0.12)', fontWeight: 700, color: '#0a4d68', fontSize: '1rem' }}>
-            📋 Appointment Records ({filtered.length})
+        <div style={{ background: '#FFFFFF', borderRadius: 12, border: '1px solid #E2E8F0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+          <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '1.05rem' }}>Appointment Records</div>
+            <div style={{ fontSize: '0.85rem', color: '#64748B', fontWeight: 500 }}>Showing {filtered.length} entries</div>
           </div>
+          
           {filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '4rem', color: '#6b7f8e' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📭</div>
-              <div style={{ fontWeight: 600 }}>No appointments found</div>
-              <div style={{ fontSize: '0.87rem', marginTop: '0.4rem' }}>Try adjusting your filters</div>
+            <div style={{ textAlign: 'center', padding: '5rem 2rem', color: '#94A3B8' }}>
+              <div style={{ fontWeight: 500, fontSize: '1rem', color: '#64748B' }}>No appointments found</div>
+              <div style={{ fontSize: '0.85rem', marginTop: '0.4rem' }}>Adjust your filters or sync the database</div>
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                 <thead>
-                  <tr style={{ background: '#f8fbfc' }}>
-                    {['#', 'Patient', 'Phone', 'Date', 'Time', 'Reason', 'Via', 'Status', 'Actions'].map(h => (
-                      <th key={h} style={{ padding: '0.85rem 1rem', textAlign: 'left', color: '#6b7f8e', fontWeight: 600, fontSize: '0.8rem', whiteSpace: 'nowrap', borderBottom: '1px solid rgba(5,191,219,0.12)' }}>{h}</th>
+                  <tr style={{ background: '#F8FAFC' }}>
+                    {['Patient details', 'Contact', 'Schedule', 'Reason', 'Source', 'Status', ''].map((h, i) => (
+                      <th key={i} style={{ padding: '1rem 1.5rem', textAlign: 'left', color: '#64748B', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((a, i) => (
-                    <tr key={a?.id || i} style={{ borderBottom: '1px solid rgba(5,191,219,0.08)', transition: 'background 0.2s' }} onMouseEnter={e => (e.currentTarget.style.background = '#f8fbfc')} onMouseLeave={e => (e.currentTarget.style.background = 'white')}>
-                      <td style={{ padding: '0.9rem 1rem', color: '#6b7f8e', fontWeight: 600 }}>#{i + 1}</td>
-                      <td style={{ padding: '0.9rem 1rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#05bfdb,#00e5c8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '0.82rem' }}>
-                            {(a?.patientName || '?').charAt(0).toUpperCase()}
-                          </div>
-                          <span style={{ fontWeight: 600, color: '#1a2332' }}>{a?.patientName || 'Unknown'}</span>
+                    <tr key={a?.id || i} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseEnter={e => (e.currentTarget.style.background = '#F8FAFC')} onMouseLeave={e => (e.currentTarget.style.background = '#FFFFFF')}>
+                      <td style={{ padding: '1rem 1.5rem' }}>
+                        <div style={{ fontWeight: 500, color: '#0F172A' }}>{a?.patientName || 'Unknown'}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '0.2rem' }}>ID: {(a?.id || '').substring(0, 6)}</div>
+                      </td>
+                      <td style={{ padding: '1rem 1.5rem', color: '#475569' }}>{a?.patientPhone || '—'}</td>
+                      <td style={{ padding: '1rem 1.5rem', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontWeight: 500, color: '#0F172A' }}>
+                          {(() => {
+                            try {
+                              if (!a?.date) return '—';
+                              const d = new Date(a.date.includes('-') ? a.date + 'T12:00:00' : a.date);
+                              if (isNaN(d.getTime())) return a.date;
+                              return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                            } catch { return a?.date || '—'; }
+                          })()}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: '#64748B', marginTop: '0.2rem' }}>{a?.time || '—'}</div>
+                      </td>
+                      <td style={{ padding: '1rem 1.5rem', color: '#64748B', maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a?.reason || '—'}</td>
+                      <td style={{ padding: '1rem 1.5rem' }}>
+                        <span style={{ display: 'inline-block', background: '#F1F5F9', color: '#475569', padding: '0.25rem 0.6rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 600 }}>
+                          {a?.bookedVia === 'voice' || a?.bookedVia === 'ai' ? 'Voice AI' : 'Web Form'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '1rem 1.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <div style={{ width: 6, height: 6, borderRadius: '50%', background: a?.status === 'confirmed' ? '#10B981' : a?.status === 'completed' ? '#6366F1' : '#EF4444' }} />
+                          <span style={{ color: '#334155', fontSize: '0.85rem', fontWeight: 500 }}>
+                            {(a?.status || 'confirmed').charAt(0).toUpperCase() + (a?.status || 'confirmed').slice(1)}
+                          </span>
                         </div>
                       </td>
-                      <td style={{ padding: '0.9rem 1rem', color: '#1a2332' }}>{a?.patientPhone || '—'}</td>
-                      <td style={{ padding: '0.9rem 1rem', color: '#1a2332', whiteSpace: 'nowrap' }}>
-                        {(() => {
-                          try {
-                            if (!a?.date) return '—';
-                            const d = new Date(a.date.includes('-') ? a.date + 'T12:00:00' : a.date);
-                            if (isNaN(d.getTime())) return a.date;
-                            return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-                          } catch { return a?.date || '—'; }
-                        })()}
-                      </td>
-                      <td style={{ padding: '0.9rem 1rem', color: '#0a4d68', fontWeight: 600 }}>{a?.time || '—'}</td>
-                      <td style={{ padding: '0.9rem 1rem', color: '#6b7f8e', maxWidth: 160 }}>{a?.reason || '—'}</td>
-                      <td style={{ padding: '0.9rem 1rem' }}>
-                        <span style={{ background: a?.bookedVia === 'voice' || a?.bookedVia === 'ai' ? 'rgba(5,191,219,0.12)' : 'rgba(10,77,104,0.08)', color: '#0a4d68', padding: '0.2rem 0.6rem', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600 }}>
-                          {a?.bookedVia === 'voice' || a?.bookedVia === 'ai' ? '🎙️ AI' : '📝 Form'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '0.9rem 1rem' }}>
-                        <span style={{ background: statusBg(a?.status || 'confirmed'), color: statusColor(a?.status || 'confirmed'), padding: '0.25rem 0.7rem', borderRadius: 20, fontSize: '0.78rem', fontWeight: 700 }}>
-                          {(a?.status || 'confirmed').charAt(0).toUpperCase() + (a?.status || 'confirmed').slice(1)}
-                        </span>
-                      </td>
-                      <td style={{ padding: '0.9rem 1rem' }}>
-                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                           {a?.status === 'confirmed' && (
                             <button onClick={() => updateAppointmentStatus(a.id, 'completed')}
-                              style={{ background: 'rgba(14,109,140,0.1)', color: '#0e6d8c', border: 'none', borderRadius: 8, padding: '0.3rem 0.6rem', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'inherit', fontWeight: 600 }}>Done</button>
+                              style={{ background: '#FFF', border: '1px solid #E2E8F0', color: '#6366F1', borderRadius: 6, padding: '0.35rem 0.75rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500, transition: 'all 0.2s' }} onMouseEnter={e => {e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#6366F1'}} onMouseLeave={e => {e.currentTarget.style.background = '#FFF'; e.currentTarget.style.borderColor = '#E2E8F0'}}>Mark Done</button>
                           )}
                           {a?.status !== 'cancelled' && (
                             <button onClick={() => updateAppointmentStatus(a.id, 'cancelled')}
-                              style={{ background: 'rgba(231,76,60,0.1)', color: '#e74c3c', border: 'none', borderRadius: 8, padding: '0.3rem 0.6rem', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'inherit', fontWeight: 600 }}>Cancel</button>
+                              style={{ background: '#FFF', border: '1px solid #E2E8F0', color: '#EF4444', borderRadius: 6, padding: '0.35rem 0.75rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500, transition: 'all 0.2s' }} onMouseEnter={e => {e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.borderColor = '#EF4444'}} onMouseLeave={e => {e.currentTarget.style.background = '#FFF'; e.currentTarget.style.borderColor = '#E2E8F0'}}>Cancel</button>
                           )}
-                          <button onClick={() => { if (a?.id && confirm('Delete this appointment?')) deleteAppointment(a.id); }}
-                            style={{ background: 'rgba(231,76,60,0.08)', color: '#e74c3c', border: 'none', borderRadius: 8, padding: '0.3rem 0.5rem', cursor: 'pointer', fontSize: '0.8rem' }}>🗑️</button>
+                          <button onClick={() => { if (a?.id && confirm('Delete this appointment completely?')) deleteAppointment(a.id); }}
+                            style={{ background: 'transparent', color: '#94A3B8', border: 'none', padding: '0.35rem', cursor: 'pointer', fontSize: '0.9rem', transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = '#EF4444'} onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}>✕</button>
                         </div>
                       </td>
                     </tr>

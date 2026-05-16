@@ -504,6 +504,9 @@ function VoiceWidget({
     PROCESSING: 'One moment while we save this',
     COMPLETED: 'Call ending shortly'
   };
+
+  if (!isOpen) return null;
+
   return (
     <div className={`widget-overlay ${isOpen ? 'open' : ''}`} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="widget">
@@ -511,10 +514,31 @@ function VoiceWidget({
         <div className={`widget-avatar ${agentState === 'SPEAKING' ? 'speaking' : ''}`}>
           {agentState === 'LISTENING' ? '🎧' : agentState === 'COMPLETED' ? '✅' : '📞'}
         </div>
-        <div className="widget-status">{statusText[agentState] || 'Connecting...'}</div>
-        <div className="widget-transcript">{transcript ? `"${transcript}"` : stepLabel[agentState]}</div>
-        <div className={`widget-mic ${agentState === 'LISTENING' ? 'listening' : 'idle'}`}>
-          {agentState === 'LISTENING' ? '🎙️' : '🔇'}
+
+        {/* Middle: Transcript & Status */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', zIndex: 1, padding: '0 1rem' }}>
+          <div style={{ color: agentState === 'LISTENING' ? '#10b981' : agentState === 'SPEAKING' ? '#3b82f6' : '#64748b', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, marginBottom: '1rem', transition: 'color 0.3s' }}>
+            {statusText[agentState] || 'Connecting...'}
+          </div>
+          
+          <div style={{ color: '#fff', fontSize: '1.1rem', textAlign: 'center', lineHeight: 1.5, opacity: transcript ? 1 : 0.5, fontStyle: transcript ? 'normal' : 'italic', transition: 'opacity 0.3s', maxWidth: '100%' }}>
+            {transcript ? `"${transcript}"` : (agentState === 'LISTENING' ? 'Go ahead and speak...' : '...')}
+          </div>
+        </div>
+
+        {/* Bottom: Controls */}
+        <div style={{ zIndex: 1, width: '100%', display: 'flex', justifyContent: 'center', gap: '2rem', marginBottom: '2rem' }}>
+          <button style={{ width: 60, height: 60, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
+            🔇
+          </button>
+          
+          <button onClick={onClose} style={{ width: 72, height: 72, borderRadius: '50%', background: '#ef4444', border: 'none', color: '#fff', fontSize: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 25px rgba(239, 68, 68, 0.4)', transform: 'rotate(135deg)', transition: 'transform 0.2s, background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#dc2626'} onMouseLeave={e => e.currentTarget.style.background = '#ef4444'}>
+            📞
+          </button>
+
+          <button style={{ width: 60, height: 60, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
+            💬
+          </button>
         </div>
         <div className="widget-step-label">Dr. Romesh Clinic · Call Assistant</div>
       </div>

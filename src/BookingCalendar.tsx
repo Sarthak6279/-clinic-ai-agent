@@ -31,7 +31,12 @@ export default function BookingCalendar({ onClose }: { onClose?: () => void }) {
   const [mode, setMode] = useState<'clinic' | 'online'>('clinic');
   const [submitting, setSubmitting] = useState(false);
 
-  // Rebuild booked map when appointments change
+  // ✅ Fetch fresh cloud data every time the calendar opens — catches any deletions from dashboard
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
+
+  // Rebuild booked map when appointments change (listens to both event names)
   useEffect(() => {
     const rebuild = () => {
       const map: Record<string, boolean> = {};
