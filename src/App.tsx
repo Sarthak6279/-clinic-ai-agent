@@ -29,6 +29,13 @@ const TESTIMONIALS = [
   { name: "Suresh K.", initial: "S", stars: 4, text: "Professional, punctual, and genuinely caring. Treated my chronic acidity effectively. The clinic is well-organized and the staff is helpful.", since: "Patient since 2022" },
 ];
 
+const TRUST_POINTS = [
+  { icon: "🛡️", title: "Verified Specialist", text: "12+ years in hepatology and gastroenterology care" },
+  { icon: "📍", title: "Prime Jabalpur Location", text: "In front of Reliance Fresh, Madan Mahal" },
+  { icon: "📞", title: "Fast Booking Assistance", text: "Call-first booking with quick response during clinic hours" },
+  { icon: "⭐", title: "Trusted by Patients", text: "4.0/5 rating from 650+ reviews" },
+];
+
 function useCountUp(target: number, duration = 1500) {
   const [count, setCount] = useState(0);
   const [started, setStarted] = useState(false);
@@ -119,23 +126,43 @@ function Hero({ onBook }: { onBook: () => void }) {
       </div>
       <div className="hero-right">
           <div className="hero-card">
-            <div className="hero-card-header"><div className="hero-card-icon teal">📊</div><span className="hero-card-badge">Clinic Snapshot</span></div>
+            <div className="hero-card-header"><div className="hero-card-icon teal">📊</div><span className="hero-card-badge">Today at Clinic</span></div>
             <div className="hero-card-val">5,000+</div>
-            <div className="hero-card-label">Patients Treated</div>
+            <div className="hero-card-label">Consultations Completed</div>
           </div>
           <div className="hero-card">
-            <div className="hero-card-header"><div className="hero-card-icon green">📅</div><span className="hero-card-badge">Next Slot</span></div>
+            <div className="hero-card-header"><div className="hero-card-icon green">📅</div><span className="hero-card-badge">Consultation Queue</span></div>
             <div className="hero-card-mini">
               <div className="hero-card-avatar">R</div>
-              <div><div className="hero-card-info-name">Today: 11:30 AM</div><div className="hero-card-info-time">Liver Consultation</div></div>
+              <div><div className="hero-card-info-name">11:30 AM — Confirmed</div><div className="hero-card-info-time">Liver & GI follow-up</div></div>
               <div className="hero-card-status" />
             </div>
           </div>
           <div className="hero-card">
-            <div className="hero-card-header"><div className="hero-card-icon blue">⭐</div><span className="hero-card-badge">Patient Feedback</span></div>
+            <div className="hero-card-header"><div className="hero-card-icon blue">⭐</div><span className="hero-card-badge">Care Quality</span></div>
             <div className="hero-card-val">4.0 / 5.0</div>
-            <div className="hero-card-label">Patient Satisfaction Score</div>
+            <div className="hero-card-label">Patient Satisfaction</div>
           </div>
+      </div>
+    </section>
+  );
+}
+
+function TrustStrip() {
+  return (
+    <section className="trust-strip">
+      <div className="container">
+        <div className="trust-grid">
+          {TRUST_POINTS.map((point, idx) => (
+            <div key={idx} className="trust-item">
+              <div className="trust-icon">{point.icon}</div>
+              <div>
+                <div className="trust-title">{point.title}</div>
+                <div className="trust-text">{point.text}</div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -575,6 +602,7 @@ export default function App() {
     <>
       <Nav onBook={handleOpenCall} />
       <Hero onBook={handleOpenCall} />
+      <TrustStrip />
       <Profile />
       <Services />
       <Insights />
