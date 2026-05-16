@@ -250,7 +250,8 @@ Booked Slots (DO NOT BOOK THESE): ${bookedStr || 'None'}`;
 
         // ✅ Also infer what the user just said based on context — update collected accordingly.
         // If AI just asked for name (last AI msg asked for name) and user replied, store it.
-        const lastAiMsg = messages.filter(m => m.role === 'assistant').at(-1)?.content || '';
+        const assistantMsgs = messages.filter(m => m.role === 'assistant');
+        const lastAiMsg = assistantMsgs[assistantMsgs.length - 1]?.content || '';
         const nameQ  = /नाम/.test(lastAiMsg);
         const phoneQ = /नंबर|मोबाइल|number/.test(lastAiMsg);
         const dateQ  = /तारीख|date|दिनांक/.test(lastAiMsg);
