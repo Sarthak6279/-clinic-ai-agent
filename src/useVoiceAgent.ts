@@ -144,7 +144,7 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
         model: 'llama-3.1-8b-instant',
         messages: messages,
         temperature: 0.5,
-        max_tokens: 300
+        max_tokens: 100
       })
     });
     
@@ -187,9 +187,10 @@ Rules:
 
       messages.push({ role: 'user', content: userText });
       
-      // Keep only the system prompt and the last 4 messages to save tokens
-      if (messages.length > 5) {
-        messages = [messages[0], ...messages.slice(-4)];
+      // Aggressively keep only the system prompt + last 2 messages (1 AI question, 1 User answer)
+      // This guarantees we never exceed the strict 6K Tokens Per Minute limit
+      if (messages.length > 3) {
+        messages = [messages[0], ...messages.slice(-2)];
       }
 
       setAgentState('PROCESSING');
