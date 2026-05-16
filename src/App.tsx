@@ -752,10 +752,10 @@ export default function App() {
       <Nav onBook={handleOpenCall} />
       <Hero onBook={handleOpenCall} />
       <TrustStrip />
+      <Booking onBook={handleOpenCall} onOpenCalendar={() => setIsCalendarOpen(true)} />
       <Profile />
       <Services />
       <Insights />
-      <Booking onBook={handleOpenCall} onOpenCalendar={() => setIsCalendarOpen(true)} />
       <Why />
       <Testimonials />
       <FAQ />
