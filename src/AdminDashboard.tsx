@@ -145,7 +145,13 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                       </td>
                       <td style={{ padding: '0.9rem 1rem', color: '#1a2332' }}>{a.patientPhone}</td>
                       <td style={{ padding: '0.9rem 1rem', color: '#1a2332', whiteSpace: 'nowrap' }}>
-                        {new Date(a.date + 'T12:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {(() => {
+                          try {
+                            const d = new Date(a.date.includes('-') ? a.date + 'T12:00:00' : a.date);
+                            if (isNaN(d.getTime())) return a.date;
+                            return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                          } catch { return a.date; }
+                        })()}
                       </td>
                       <td style={{ padding: '0.9rem 1rem', color: '#0a4d68', fontWeight: 600 }}>{a.time}</td>
                       <td style={{ padding: '0.9rem 1rem', color: '#6b7f8e', maxWidth: 160 }}>{a.reason || '—'}</td>

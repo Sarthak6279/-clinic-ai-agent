@@ -48,9 +48,13 @@ export async function fetchAppointments(): Promise<BookedSlot[]> {
       return getLocalAppointments();
     }
     if (data) {
-      cachedAppointments = data;
-      localStorage.setItem(KEY, JSON.stringify(data));
-      return data;
+      const local = getLocalAppointments();
+      const dbIds = new Set(data.map(d => d.id));
+      const localOnly = local.filter(l => !dbIds.has(l.id));
+      
+      cachedAppointments = [...localOnly, ...data].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      localStorage.setItem(KEY, JSON.stringify(cachedAppointments));
+      return cachedAppointments;
     }
   }
   return getLocalAppointments();
