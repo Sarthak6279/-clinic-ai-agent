@@ -138,30 +138,43 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
 
   const callGroq = async (messages: any[]) => {
     // Use environment variable first, fallback to default key (split to bypass scanner)
+    // Note: If you push a key to GitHub, Groq will revoke it automatically (403 Forbidden).
     const k1 = "gsk_KQtCBYUNtrwc";
     const k2 = "IjLX7HiGWGdyb3FYdYI";
     const k3 = "TmL7oQ8OaNXI4Atl6BtQv";
     const API_KEY = import.meta.env.VITE_GROQ_API_KEY || (k1 + k2 + k3);
     
     if (!API_KEY) throw new Error("Groq API Key missing");
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${API_KEY}`
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages,
-        temperature: 0.3,
-        max_tokens: 500,
-        response_format: { type: "text" }
-      })
-    });
-    
-    if (!res.ok) throw new Error("Groq API Error");
-    const data = await res.json();
-    return data.choices[0].message.content;
+
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "llama-3.1-8b-instant", // Using a more stable model
+          messages,
+          temperature: 0.3,
+          max_tokens: 500,
+          response_format: { type: "text" }
+        })
+      });
+      
+      if (res.status === 403) {
+        throw new Error("API_KEY_REVOKED");
+      }
+      
+      if (!res.ok) throw new Error("Groq API Error");
+      const data = await res.json();
+      return data.choices[0].message.content;
+    } catch (err: any) {
+      if (err.message === "API_KEY_REVOKED") {
+        throw new Error("आपकी API Key अमान्य है। कृपया नई Key सेट करें। (403 Forbidden)");
+      }
+      throw err;
+    }
   };
 
   const runConversationalFlow = useCallback(async () => {
