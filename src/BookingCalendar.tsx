@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ALL_SLOTS, isSlotBooked, saveAppointment, generateId, type BookedSlot } from './store';
+import { ALL_SLOTS, isSlotBooked, saveAppointment, fetchAppointments, generateId, type BookedSlot } from './store';
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
@@ -31,7 +31,12 @@ export default function BookingCalendar({ onClose }: { onClose?: () => void }) {
   const [mode, setMode] = useState<'clinic' | 'online'>('clinic');
   const [submitting, setSubmitting] = useState(false);
 
-  // Rebuild booked map when appointments change
+  // ✅ Fetch fresh cloud data every time the calendar opens — catches any deletions from dashboard
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
+
+  // Rebuild booked map when appointments change (listens to both event names)
   useEffect(() => {
     const rebuild = () => {
       const map: Record<string, boolean> = {};
