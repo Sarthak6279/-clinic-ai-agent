@@ -197,29 +197,29 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
       else slotStatus = 'स्लॉट उपलब्ध है।';
     }
 
-    return `तुम डॉक्टर रमेश चावलानी की क्लिनिक की रिसेप्शनिस्ट हो। केवल हिंदी में बात करो।
+    return `तुम डॉक्टर रमेश चावलानी की क्लिनिक की रिसेप्शनिस्ट हो। केवल हिंदी में बात करो। छोटे जवाब दो।
 
-STRICT RULES:
-1. एक समय में सिर्फ एक सवाल पूछो।
-2. नीचे COLLECTED DATA में जो जानकारी पहले से है वो दोबारा मत पूछो।
-3. पूछने का क्रम: नाम → मोबाइल नंबर → तारीख → समय → पुष्टि
-4. मोबाइल नंबर: यूजर जो भी बोले उसमें से सिर्फ अंक निकालो। अगर 10 अंक हों तो सही मानो।
-5. रविवार को क्लिनिक बंद है। बुक्ड स्लॉट पर appointment नहीं हो सकती।
-6. सभी जानकारी मिलने पर एक बार संक्षेप में बताओ और हाँ/नहीं पूछो।
-7. यूजर हाँ/जी/सही है बोले तो EXACTLY यह JSON output करो और कुछ नहीं:
-{"status":"BOOKED","name":"...","phone":"...","date":"YYYY-MM-DD","time":"H:MM AM/PM"}
-8. गलत जानकारी हो तो सिर्फ वही बदलो।
-9. जानकारी दोहराओ मत। छोटे जवाब दो।
+नियम:
+1. COLLECTED DATA में जो जानकारी है वो दोबारा कभी मत पूछो।
+2. एक बार में सिर्फ एक सवाल पूछो।
+3. रविवार क्लिनिक बंद है। बुक्ड स्लॉट पर appointment नहीं।
+4. सभी 4 जानकारी मिलने पर संक्षेप में बताओ और हाँ/नहीं पूछो।
+5. जब यूजर तारीख या समय बताए, उसे YYYY-MM-DD / H:MM AM/PM format में parse करके नीचे दिए format में JSON दो (बोलो नहीं):
+   {"date":"YYYY-MM-DD"} या {"time":"H:MM AM/PM"}
+6. confirmation पर ONLY यह JSON:
+   {"status":"BOOKED","name":"...","phone":"...","date":"YYYY-MM-DD","time":"H:MM AM/PM"}
 
-COLLECTED DATA (यह पहले से मिली जानकारी है, दोबारा मत पूछो):
-- नाम: ${c.name || '—'}
-- मोबाइल: ${c.phone || '—'}
-- तारीख: ${c.date || '—'}
-- समय: ${c.time || '—'}
+COLLECTED DATA — इन्हें दोबारा मत पूछो:
+- नाम: ${c.name ? `✓ ${c.name}` : 'अभी नहीं मिला'}
+- मोबाइल: ${c.phone ? `✓ ${c.phone}` : 'अभी नहीं मिला'}
+- तारीख: ${c.date ? `✓ ${c.date}` : 'अभी नहीं मिली'}
+- समय: ${c.time ? `✓ ${c.time}` : 'अभी नहीं मिला'}
 ${slotStatus ? `- स्लॉट स्थिति: ${slotStatus}` : ''}
 
-आज की तारीख: ${todayStr} (${new Date().toLocaleDateString('hi-IN', { weekday: 'long' })})
-पहले से बुक स्लॉट: ${bookedList}`;
+NEXT QUESTION (सिर्फ यही पूछो):
+${!c.name ? '→ नाम पूछो' : !c.phone ? '→ मोबाइल नंबर पूछो' : !c.date ? '→ तारीख पूछो: "आप किस तारीख को आना चाहते हैं?"' : !c.time ? '→ समय पूछो: "आप किस समय आना चाहते हैं?"' : '→ सभी जानकारी मिल गई है। संक्षेप में confirm करो।'}
+
+आज: ${todayStr} | पहले से बुक: ${bookedList}`;
   };
 
   const runConversationalFlow = useCallback(async () => {
@@ -247,16 +247,34 @@ ${slotStatus ? `- स्लॉट स्थिति: ${slotStatus}` : ''}
         continue;
       }
 
-      // ── Client-side phone normalization ──────────────────────────────
-      let userText = rawText;
-      if (stepRef.current === 'phone') {
-        const cleaned = tryExtractPhone(rawText);
-        if (cleaned) {
-          userText = cleaned;
-          collectedRef.current.phone = cleaned;
-          console.log('[Phone extracted]', rawText, '→', cleaned);
+      let userText = rawText.trim();
+      const c = collectedRef.current;
+      const step = stepRef.current;
+
+      // ── EAGER CLIENT-SIDE EXTRACTION ─────────────────────────────────
+      // Store each field directly from user speech so COLLECTED DATA is
+      // always accurate and the AI never re-asks for known fields.
+
+      if (step === 'name' && !c.name) {
+        // Take whatever the user said as their name (strip punctuation)
+        const nm = userText.replace(/[^\u0900-\u097Fa-zA-Z\s]/g, '').trim();
+        if (nm.length >= 2) {
+          collectedRef.current.name = nm;
+          console.log('[Name extracted]', nm);
         }
       }
+
+      if (step === 'phone' || (!c.phone && extractDigits(userText).length >= 8)) {
+        const digits = tryExtractPhone(userText);
+        if (digits && digits.length === 10) {
+          collectedRef.current.phone = digits;
+          userText = digits; // send clean number to AI
+          console.log('[Phone extracted]', rawText, '→', digits);
+        }
+      }
+
+      // Date and time: let AI parse and format, but mark step progress
+      // so the prompt tells AI exactly what's missing
 
       messages.push({ role: 'user', content: userText });
       messages[0] = { role: 'system', content: buildSystemPrompt(todayStr) };
@@ -277,10 +295,11 @@ ${slotStatus ? `- स्लॉट स्थिति: ${slotStatus}` : ''}
           const jsonMatch = aiResponse.match(/\{[\s\S]*?\}/);
           if (jsonMatch) {
             const parsed = JSON.parse(jsonMatch[0]);
-            if (parsed.name)  collectedRef.current.name  = parsed.name;
-            if (parsed.phone) collectedRef.current.phone = parsed.phone;
-            if (parsed.date)  collectedRef.current.date  = parsed.date;
-            if (parsed.time)  collectedRef.current.time  = parsed.time;
+            // Always update any field the AI has captured
+            if (parsed.name  && parsed.name  !== '...' && parsed.name  !== '—') collectedRef.current.name  = parsed.name;
+            if (parsed.phone && parsed.phone !== '...' && parsed.phone !== '—') collectedRef.current.phone = parsed.phone;
+            if (parsed.date  && parsed.date  !== '...' && parsed.date  !== '—') collectedRef.current.date  = parsed.date;
+            if (parsed.time  && parsed.time  !== '...' && parsed.time  !== '—') collectedRef.current.time  = parsed.time;
 
             if (parsed.status === 'BOOKED') {
               onAppointmentBooked({
@@ -297,19 +316,20 @@ ${slotStatus ? `- स्लॉट स्थिति: ${slotStatus}` : ''}
           }
         } catch (e) {}
 
-        // ── Advance step based on what's been collected ───────────────
-        const c = collectedRef.current;
-        if (!c.name)        stepRef.current = 'name';
-        else if (!c.phone)  stepRef.current = 'phone';
-        else if (!c.date)   stepRef.current = 'date';
-        else if (!c.time)   stepRef.current = 'time';
-        else                stepRef.current = 'confirm';
+        // ── Advance step tracker ──────────────────────────────────────
+        const updated = collectedRef.current;
+        if (!updated.name)        stepRef.current = 'name';
+        else if (!updated.phone)  stepRef.current = 'phone';
+        else if (!updated.date)   stepRef.current = 'date';
+        else if (!updated.time)   stepRef.current = 'time';
+        else                      stepRef.current = 'confirm';
 
+        // Remove JSON from spoken text (don't speak raw JSON to user)
+        const spokenText = aiResponse.replace(/\{[\s\S]*?\}/g, '').trim();
         messages.push({ role: 'assistant', content: aiResponse });
 
-        // Don't speak if response is the JSON (already handled above)
-        if (!aiResponse.includes('"status"')) {
-          await speak(aiResponse);
+        if (spokenText) {
+          await speak(spokenText);
         }
 
       } catch (err) {
