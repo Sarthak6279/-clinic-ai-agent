@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ALL_SLOTS, APPOINTMENTS_STORAGE_KEY, isSlotBooked, saveAppointment, fetchAppointments, generateId, type BookedSlot } from './store';
 
 function getDaysInMonth(year: number, month: number) {
@@ -31,53 +31,51 @@ export default function BookingCalendar({ onClose }: { onClose?: () => void }) {
   const [mode, setMode] = useState<'clinic' | 'online'>('clinic');
   const [submitting, setSubmitting] = useState(false);
 
-  // ── Real-time sync: fetch from Supabase every 15 seconds ──
-  useEffect(() => {
-    // Fetch immediately on open
-    fetchAppointments().then(rebuildMap);
+  // ── Ref so polling closure always reads the latest selectedDate ──
+  const selectedDateRef = useRef(selectedDate);
+  useEffect(() => { selectedDateRef.current = selectedDate; }, [selectedDate]);
 
-    // Poll every 15 seconds to catch changes on other devices / admin deletions
-    const pollInterval = setInterval(() => {
-      fetchAppointments().then(rebuildMap);
-    }, 15000);
-
-    return () => clearInterval(pollInterval);
+  // Rebuild slot availability for the currently selected date
+  const rebuildSlots = useCallback((date?: string) => {
+    const d = date ?? selectedDateRef.current;
+    const map: Record<string, boolean> = {};
+    ALL_SLOTS.forEach(slot => {
+      map[slot] = d ? isSlotBooked(d, slot) : false;
+    });
+    setBookedMap(map);
   }, []);
 
-  // Rebuild slot availability whenever selectedDate changes or appointments update
-  function rebuildMap() {
-    setBookedMap(prev => {
-      const map: Record<string, boolean> = { ...prev };
-      ALL_SLOTS.forEach(slot => {
-        if (selectedDate) map[slot] = isSlotBooked(selectedDate, slot);
-      });
-      return map;
-    });
-  }
-
+  // ── Poll Supabase every 10 seconds — catches AI bookings + admin changes ──
   useEffect(() => {
-    const rebuild = () => {
-      const map: Record<string, boolean> = {};
-      ALL_SLOTS.forEach(slot => {
-        if (selectedDate) map[slot] = isSlotBooked(selectedDate, slot);
-      });
-      setBookedMap({ ...map });
+    const sync = async () => {
+      await fetchAppointments();
+      rebuildSlots();
     };
-    const syncFromStorage = (event: StorageEvent) => {
-      if (event.key === APPOINTMENTS_STORAGE_KEY) rebuild();
+    sync(); // immediate on mount
+    const poll = setInterval(sync, 10000);
+    return () => clearInterval(poll);
+  }, [rebuildSlots]);
+
+  // ── Re-rebuild whenever selectedDate changes ──
+  useEffect(() => {
+    rebuildSlots(selectedDate);
+  }, [selectedDate, rebuildSlots]);
+
+  // ── Listen for appointment events (AI booking / admin delete) ──
+  useEffect(() => {
+    const onUpdate = () => rebuildSlots();
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === APPOINTMENTS_STORAGE_KEY) rebuildSlots();
     };
-
-    rebuild();
-    window.addEventListener('appointments-updated', rebuild);
-    window.addEventListener('appointments-updated-local', rebuild);
-    window.addEventListener('storage', syncFromStorage);
-
+    window.addEventListener('appointments-updated', onUpdate);
+    window.addEventListener('appointments-updated-local', onUpdate);
+    window.addEventListener('storage', onStorage);
     return () => {
-      window.removeEventListener('appointments-updated', rebuild);
-      window.removeEventListener('appointments-updated-local', rebuild);
-      window.removeEventListener('storage', syncFromStorage);
+      window.removeEventListener('appointments-updated', onUpdate);
+      window.removeEventListener('appointments-updated-local', onUpdate);
+      window.removeEventListener('storage', onStorage);
     };
-  }, [selectedDate]);
+  }, [rebuildSlots]);
 
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = new Date(year, month, 1).getDay();
