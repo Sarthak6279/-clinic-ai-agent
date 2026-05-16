@@ -105,7 +105,7 @@ function Hero({ onBook }: { onBook: () => void }) {
       <div className="hero-left">
         <div className="hero-tag"><span className="hero-tag-dot" />Now Accepting Appointments</div>
         <h1 className="hero-title">Specialist Care for<br /><span>Liver &amp; Digestive</span><br />Health</h1>
-        <p className="hero-desc">With 12+ years of clinical expertise, Dr. Romesh Chawalani provides evidence-based Hepatology and Gastroenterology care in Jabalpur — personalized to every patient.</p>
+        <p className="hero-desc">Evidence-based hepatology and gastroenterology care by Dr. Romesh Chawalani in Madan Mahal, Jabalpur. Clear guidance, structured treatment plans, and patient-first consultations.</p>
         <div className="hero-actions">
           <button className="btn-primary" onClick={onBook}>Book an Appointment</button>
           <a href="#services" className="btn-secondary">View Services</a>
@@ -118,24 +118,24 @@ function Hero({ onBook }: { onBook: () => void }) {
         </div>
       </div>
       <div className="hero-right">
-        <div className="hero-card">
-          <div className="hero-card-header"><div className="hero-card-icon teal">📊</div><span className="hero-card-badge">+12% this month</span></div>
-          <div className="hero-card-val">5,248</div>
-          <div className="hero-card-label">Total Patients Treated</div>
-        </div>
-        <div className="hero-card">
-          <div className="hero-card-header"><div className="hero-card-icon green">📅</div><span className="hero-card-badge">Today</span></div>
-          <div className="hero-card-mini">
-            <div className="hero-card-avatar">R</div>
-            <div><div className="hero-card-info-name">Next: Rajesh S.</div><div className="hero-card-info-time">11:30 AM — Liver Consult</div></div>
-            <div className="hero-card-status" />
+          <div className="hero-card">
+            <div className="hero-card-header"><div className="hero-card-icon teal">📊</div><span className="hero-card-badge">Clinic Snapshot</span></div>
+            <div className="hero-card-val">5,000+</div>
+            <div className="hero-card-label">Patients Treated</div>
           </div>
-        </div>
-        <div className="hero-card">
-          <div className="hero-card-header"><div className="hero-card-icon blue">⭐</div><span className="hero-card-badge">650 Reviews</span></div>
-          <div className="hero-card-val">4.0 / 5.0</div>
-          <div className="hero-card-label">Patient Satisfaction Score</div>
-        </div>
+          <div className="hero-card">
+            <div className="hero-card-header"><div className="hero-card-icon green">📅</div><span className="hero-card-badge">Next Slot</span></div>
+            <div className="hero-card-mini">
+              <div className="hero-card-avatar">R</div>
+              <div><div className="hero-card-info-name">Today: 11:30 AM</div><div className="hero-card-info-time">Liver Consultation</div></div>
+              <div className="hero-card-status" />
+            </div>
+          </div>
+          <div className="hero-card">
+            <div className="hero-card-header"><div className="hero-card-icon blue">⭐</div><span className="hero-card-badge">Patient Feedback</span></div>
+            <div className="hero-card-val">4.0 / 5.0</div>
+            <div className="hero-card-label">Patient Satisfaction Score</div>
+          </div>
       </div>
     </section>
   );
@@ -216,14 +216,14 @@ function Insights() {
       <div className="container">
         <div className="section-label fade-up" ref={ref}>Clinic at a Glance</div>
         <div className="section-title" style={{ color: 'white', marginBottom: '0.75rem' }}>Real-Time Clinic Metrics</div>
-        <p className="section-desc" style={{ color: 'rgba(255,255,255,0.65)', marginBottom: '2.5rem' }}>A snapshot of the clinic's performance and patient outcomes.</p>
-        <div className="insights-grid">
-          {[
-            { icon: "👥", val: "5,248", label: "Patients Treated", change: "+12% this month" },
-            { icon: "📅", val: "18", label: "Appointments Today", change: "Fully booked 3 days/week" },
-            { icon: "⭐", val: "4.0/5", label: "Patient Rating", change: "650 verified reviews" },
-            { icon: "⚡", val: "5 mins", label: "Response Time", change: "Fastest in Jabalpur" },
-          ].map((c, i) => (
+         <p className="section-desc" style={{ color: 'rgba(255,255,255,0.65)', marginBottom: '2.5rem' }}>A quick summary of patient volume, booking pace, and consultation quality.</p>
+         <div className="insights-grid">
+           {[
+             { icon: "👥", val: "5,000+", label: "Patients Treated", change: "12+ years of practice" },
+             { icon: "📅", val: "22", label: "Daily Slots", change: "30-minute appointments" },
+             { icon: "⭐", val: "4.0/5", label: "Patient Rating", change: "650+ verified reviews" },
+             { icon: "⚡", val: "~5 min", label: "Booking Response", change: "During working hours" },
+           ].map((c, i) => (
             <div key={i} className="insight-card">
               <div className="insight-icon">{c.icon}</div>
               <div className="insight-val">{c.val}</div>
@@ -386,14 +386,14 @@ function Contact() {
               { icon: "📞", label: "Phone", val: "07383371238" },
               { icon: "🕐", label: "Timings", val: "Mon–Sat: 10AM–2PM & 5PM–8PM" },
               { icon: "💰", label: "Consultation Fee", val: "₹400 (Clinic) · ₹300 (Online)" },
-              { icon: "⚡", label: "Response Time", val: "Responds in approx. 5 minutes" },
+               { icon: "⚡", label: "Response Time", val: "Approx. 5 minutes during clinic hours" },
             ].map((c, i) => (
               <div key={i} className="contact-item">
                 <div className="contact-item-icon">{c.icon}</div>
                 <div><div className="contact-item-label">{c.label}</div><div className="contact-item-val">{c.val}</div></div>
               </div>
             ))}
-            <div className="map-placeholder">📍 Madan Mahal, Jabalpur — Map Coming Soon</div>
+            <div className="map-placeholder">📍 In Front of Reliance Fresh, Madan Mahal, Jabalpur</div>
           </div>
           <div className="booking-card">
             <div style={{ fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem' }}>Send an Enquiry</div>
