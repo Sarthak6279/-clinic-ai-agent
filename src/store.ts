@@ -57,14 +57,22 @@ export async function fetchAppointments(): Promise<BookedSlot[]> {
 }
 
 export async function saveAppointment(slot: BookedSlot): Promise<void> {
+  let insertSuccess = false;
   if (supabase) {
     const { error } = await supabase.from('appointments').insert([slot]);
-    if (error) console.error("Supabase insert error:", error);
+    if (error) {
+      console.error("Supabase insert error:", error);
+    } else {
+      insertSuccess = true;
+    }
   }
 
+  // Update local cache
   cachedAppointments = [slot, ...cachedAppointments.filter(a => a.id !== slot.id)];
   localStorage.setItem(KEY, JSON.stringify(cachedAppointments));
-  window.dispatchEvent(new Event('appointments-updated'));
+  
+  // Don't trigger fetch if we know it might wipe our local insertion
+  window.dispatchEvent(new Event('appointments-updated-local'));
 }
 
 export async function updateAppointmentStatus(id: string, status: BookedSlot['status']): Promise<void> {

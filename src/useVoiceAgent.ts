@@ -159,34 +159,19 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
 
   const runConversationalFlow = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0];
-    const systemPrompt = `You are a polite, professional AI receptionist for Dr. Romesh Chawalani (a Hepatologist and Gastroenterologist). 
-Your job is to converse naturally with the patient in Hindi and book their appointment.
+    const systemPrompt = `Role: Dr. Romesh Chawalani's clinic receptionist.
+Goal: Book appointments in Hindi (Devanagari).
+Rules:
+1. VERY BRIEF responses (max 2 sentences). Ask 1 thing at a time.
+2. Collect: Name, Phone, Date, Time (Clinic: Mon-Sat 10AM-2PM & 5PM-8PM. Closed Sun. Today: ${today}).
+3. Say "डॉक्टर रमेश चावलानी".
+4. When all 4 are collected, ask: "क्या मैं अपॉइंटमेंट बुक कर दूँ?"
+5. ONLY when patient explicitly says yes to confirm, output EXACTLY this JSON and nothing else:
+{"status": "BOOKED", "name": "...", "phone": "...", "date": "YYYY-MM-DD", "time": "HH:MM AM/PM"}`;
 
-CRITICAL RULES:
-1. Speak ONLY in Hindi using Devanagari script. Do not use English words.
-2. Be extremely brief, natural, and conversational. Ask only one question at a time. Do not write long paragraphs.
-3. When referring to the doctor, ALWAYS say "डॉक्टर रमेश चावलानी" (never use abbreviations like डॉ. or Dr.).
-4. You MUST collect exactly 4 things: Patient Name, Mobile Number, Date, and Time.
-5. Clinic hours: Mon-Sat 10AM-2PM & 5PM-8PM. CLOSED on Sundays. Today's date is ${today}.
-
-FLOW:
-- Ask for missing details one by one.
-- If the patient changes their mind (e.g., "Mera number galat hai", "Date change karni hai"), politely acknowledge and ask for the new detail.
-- Once you have all 4 details, summarize them briefly and ask: "क्या मैं आपकी अपॉइंटमेंट बुक कर दूँ?"
-- If the patient says yes (हाँ, ठीक है, book kar do), you MUST output ONLY a JSON object and absolutely no other text.
-
-JSON FORMAT (Output this ONLY after patient confirms):
-{
-  "status": "BOOKED",
-  "name": "extracted name",
-  "phone": "extracted phone",
-  "date": "YYYY-MM-DD",
-  "time": "HH:MM AM/PM"
-}`;
-
-    const messages = [
+    let messages = [
       { role: 'system', content: systemPrompt },
-      { role: 'assistant', content: "नमस्ते, मैं डॉक्टर रमेश चावलानी का असिस्टेंट बोल रहा हूँ। मैं आपकी अपॉइंटमेंट बुक करने में मदद करूँगा। क्या मैं आपका नाम जान सकता हूँ?" }
+      { role: 'assistant', content: "नमस्ते, मैं डॉक्टर रमेश चावलानी का असिस्टेंट हूँ। मैं आपकी अपॉइंटमेंट बुक करूँगा। आपका नाम क्या है?" }
     ];
 
     await speak(messages[1].content);
@@ -196,19 +181,25 @@ JSON FORMAT (Output this ONLY after patient confirms):
       if (!isActiveRef.current) break;
       
       if (!userText.trim()) {
-        await speak("माफ़ कीजिएगा, मुझे आपकी आवाज़ सुनाई नहीं दी। क्या आप दोहरा सकते हैं?");
+        await speak("माफ़ कीजिएगा, आवाज़ नहीं आई। फिर से बोलें?");
         continue;
       }
 
       messages.push({ role: 'user', content: userText });
+      
+      // Keep only the system prompt and the last 4 messages to save tokens
+      if (messages.length > 5) {
+        messages = [messages[0], ...messages.slice(-4)];
+      }
+
       setAgentState('PROCESSING');
 
       try {
         const aiResponse = await callGroq(messages);
         if (!isActiveRef.current) break;
 
-        // Check if the AI returned JSON indicating booking is confirmed
-        if (aiResponse.includes('"status": "BOOKED"') || aiResponse.includes('"status":"BOOKED"')) {
+        const isBooked = /"status"\s*:\s*"BOOKED"/i.test(aiResponse);
+        if (isBooked) {
           try {
             const jsonStr = aiResponse.substring(aiResponse.indexOf('{'), aiResponse.lastIndexOf('}') + 1);
             const data = JSON.parse(jsonStr);
@@ -232,7 +223,6 @@ JSON FORMAT (Output this ONLY after patient confirms):
             await speak(aiResponse);
           }
         } else {
-          // Otherwise, just speak the AI's response and add to history
           messages.push({ role: 'assistant', content: aiResponse });
           await speak(aiResponse);
         }

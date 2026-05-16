@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchAppointments, updateAppointmentStatus, deleteAppointment, type BookedSlot } from './store';
+import { fetchAppointments, getLocalAppointments, updateAppointmentStatus, deleteAppointment, type BookedSlot } from './store';
 
 function statusColor(s: BookedSlot['status']) {
   return s === 'confirmed' ? '#00a896' : s === 'completed' ? '#0e6d8c' : '#e74c3c';
@@ -27,7 +27,14 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   useEffect(() => {
     reload();
     window.addEventListener('appointments-updated', reload);
-    return () => window.removeEventListener('appointments-updated', reload);
+    
+    const updateLocal = () => setAppointments(getLocalAppointments());
+    window.addEventListener('appointments-updated-local', updateLocal);
+    
+    return () => {
+      window.removeEventListener('appointments-updated', reload);
+      window.removeEventListener('appointments-updated-local', updateLocal);
+    };
   }, []);
 
   const filtered = appointments
