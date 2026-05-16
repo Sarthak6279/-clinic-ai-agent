@@ -101,25 +101,24 @@ export async function fetchAppointments(): Promise<BookedSlot[]> {
     const { data, error } = await supabase.from('appointments').select('*');
     if (error) {
       console.error("Supabase fetch error:", error);
-      return getLocalAppointments();
+      return cachedAppointments; // Return last known good cache, don't fall back to stale local
     }
     if (data) {
-      // Supabase is the source of truth — use its data directly
-      // (this ensures admin deletions / status changes are reflected everywhere)
-      const normalizedDb = data.map((item) => normalizeAppointment(item));
-      
-      // Also keep any local-only entries that haven't synced to Supabase yet
-      const local = getLocalAppointments();
-      const dbIds = new Set(normalizedDb.map(d => d.id));
-      const localOnly = local.filter(l => !dbIds.has(l.id));
-      
-      const merged = [...localOnly, ...normalizedDb].sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      persistAppointments(merged);
+      // ✅ Supabase is the ONLY source of truth when configured.
+      // We do NOT merge localStorage — stale local data caused different devices to show different slots.
+      // localStorage is overwritten to exactly match Supabase so all devices stay in sync.
+      const normalized = data
+        .map((item) => normalizeAppointment(item))
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      // Overwrite localStorage completely so it mirrors Supabase exactly
+      localStorage.setItem(KEY, JSON.stringify(normalized));
+      cachedAppointments = normalized;
+      broadcastAppointmentsUpdated();
       return cachedAppointments;
     }
   }
+  // Supabase not configured — use localStorage as fallback
   const local = getLocalAppointments();
   cachedAppointments = local;
   return local;
