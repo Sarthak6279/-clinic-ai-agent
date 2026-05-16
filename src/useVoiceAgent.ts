@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { fetchAppointments, getLocalAppointments, isSlotBooked } from './store';
 
 export interface Appointment {
@@ -25,35 +25,20 @@ const DEVA_DIGIT: Record<string, string> = {
   '५': '5', '६': '6', '७': '7', '८': '8', '९': '9',
 };
 
-/**
- * Try to extract a clean digit string from speech input.
- * Handles: Devanagari digits, Hindi word digits, spaced/dashed numbers.
- */
 function extractDigits(text: string): string {
-  // Replace Devanagari digits
   let s = text;
   for (const [d, a] of Object.entries(DEVA_DIGIT)) s = s.split(d).join(a);
-
-  // Replace Hindi word digits (longest match first)
   const words = Object.keys(HINDI_DIGITS).sort((a, b) => b.length - a.length);
   for (const w of words) {
     const re = new RegExp(w, 'gi');
     s = s.replace(re, HINDI_DIGITS[w]);
   }
-
-  // Extract only digits
   return s.replace(/\D/g, '');
 }
 
-/**
- * If the input looks like a phone attempt, return the cleaned 10-digit string.
- * Otherwise return null.
- */
 function tryExtractPhone(text: string): string | null {
   const digits = extractDigits(text);
-  // Accept 10-digit result
   if (digits.length === 10) return digits;
-  // If the original text is mostly digit-like (words/chars), return whatever we got
   const nonDigitWords = text.trim().split(/\s+/).filter(w => !/^\d+$/.test(w) && !HINDI_DIGITS[w.toLowerCase()] && !Object.keys(DEVA_DIGIT).some(d => w.includes(d)));
   if (nonDigitWords.length === 0 && digits.length >= 8) return digits;
   return null;
@@ -61,15 +46,13 @@ function tryExtractPhone(text: string): string | null {
 
 export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) {
   const [agentState, setAgentState] = useState<AgentState>('IDLE');
-  const [transcript, setTranscript] = useState('');
+  const [transcript, setTranscript] = useState(''); // Keep for internal state if needed, but UI is hidden
   
   const isActiveRef = useRef(false);
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesis>(window.speechSynthesis);
 
-  // What we've collected so far
   const collectedRef = useRef({ name: '', phone: '', date: '', time: '' });
-  // Which field we're currently asking for
   const stepRef = useRef<'name' | 'phone' | 'date' | 'time' | 'confirm'>('name');
 
   const stopAll = useCallback(() => {
@@ -88,7 +71,7 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
     return new Promise((resolve) => {
       if (!isActiveRef.current) { resolve(); return; }
       setAgentState('SPEAKING');
-      setTranscript(text);
+      // setTranscript(text); // Removed to prevent any leaking
       synthRef.current.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
@@ -109,7 +92,6 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
   const listenOnce = useCallback((): Promise<string> => {
     return new Promise((resolve) => {
       if (!isActiveRef.current) { resolve(''); return; }
-
       const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (!SpeechRec) { resolve(''); return; }
 
@@ -135,24 +117,22 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
 
       recognition.onstart = () => {
         setAgentState('LISTENING');
-        setTranscript('');
+        // setTranscript(''); // Removed
         timer = setTimeout(() => { try { recognition.stop(); } catch(e) {} done(''); }, 10000);
       };
 
       recognition.onresult = (event: any) => {
-        // Pick the best alternative
         let best = '';
         for (let i = 0; i < event.results[0].length; i++) {
           const alt = event.results[0][i].transcript;
           if (!best || alt.length > best.length) best = alt;
         }
-        setTranscript(best);
+        // setTranscript(best); // Removed
         done(best);
       };
 
       recognition.onerror = () => done('');
       recognition.onend = () => done('');
-
       try { recognition.start(); } catch (e) { done(''); }
     });
   }, []);
@@ -164,149 +144,114 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
       body: JSON.stringify({
         model: 'llama-3.1-8b-instant',
         messages,
-        temperature: 0.2,
+        temperature: 0.1, // Even lower for stricter output
         max_tokens: 300,
       }),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'AI request failed');
-    }
+    if (!res.ok) throw new Error('AI request failed');
     const data = await res.json();
     return data.choices[0].message.content.trim();
   };
 
-  // ── Build the system prompt injecting current known data + live booked slots ──
   const buildSystemPrompt = (todayStr: string) => {
     const c = collectedRef.current;
-
-    // Use getLocalAppointments which reflects the latest Supabase-synced cache
     const appointments = getLocalAppointments();
     const bookedList = appointments
       .filter(a => a.status !== 'cancelled')
       .map(a => `${a.date} ${a.time}`)
       .join(' | ') || 'कोई नहीं';
 
-    // Availability check
     let slotStatus = '';
     if (c.date && c.time) {
       const isSun = new Date(c.date + 'T12:00:00').getDay() === 0;
-      const isBooked = isSlotBooked(c.date, c.time);
-      if (isSun) slotStatus = 'यह तारीख रविवार है — क्लिनिक बंद है।';
-      else if (isBooked) slotStatus = 'यह स्लॉट पहले से बुक है।';
+      if (isSun) slotStatus = 'तारीख रविवार है — क्लिनिक बंद है।';
+      else if (isSlotBooked(c.date, c.time)) slotStatus = 'यह स्लॉट पहले से बुक है।';
       else slotStatus = 'स्लॉट उपलब्ध है।';
     }
 
-    return `तुम डॉक्टर रमेश चावलानी की क्लिनिक की रिसेप्शनिस्ट हो। केवल हिंदी में बात करो। छोटे जवाब दो।
+    return `तुम डॉक्टर रमेश चावलानी की क्लिनिक की रिसेप्शनिस्ट हो। केवल हिंदी में बात करो।
 
 नियम:
-1. COLLECTED DATA में जो जानकारी है वो दोबारा कभी मत पूछो।
-2. एक बार में सिर्फ एक सवाल पूछो।
-3. रविवार क्लिनिक बंद है। बुक्ड स्लॉट पर appointment नहीं।
-4. सभी 4 जानकारी मिलने पर संक्षेप में बताओ और हाँ/नहीं पूछो।
-5. समय हमेशा हिंदी में बोलो — जैसे "तीन बजे", "साढ़े तीन बजे", "दोपहर दो बजे"। कभी "3:00 PM" या "AM/PM" मत बोलो।
-6. जब यूजर तारीख या समय बताए, उसे SILENTLY parse करो और ONLY यह JSON दो (बोलो नहीं, सिर्फ JSON):
-   {"date":"YYYY-MM-DD"} या {"time":"H:MM AM/PM"}
-7. confirmation पर ONLY यह JSON (बाकी कुछ नहीं):
-   {"status":"BOOKED","name":"...","phone":"...","date":"YYYY-MM-DD","time":"H:MM AM/PM"}
+1. COLLECTED DATA में जो जानकारी (✓) है, उसे दोबारा मत पूछना।
+2. एक समय में सिर्फ एक सवाल पूछना।
+3. समय हमेशा प्राकृतिक हिंदी में बोलना (जैसे: "दो बजे", "साढ़े तीन बजे")। "AM/PM" कभी मत बोलना।
+4. यूजर से मिली जानकारी को parse करके JSON में भी देना: {"name":"...", "phone":"...", "date":"YYYY-MM-DD", "time":"H:MM AM/PM"}
+5. अगर यूजर तारीख बताए तो YYYY-MM-DD format में JSON देना।
+6. जब सब 4 जानकारी (नाम, फोन, तारीख, समय) मिल जाए, तब संक्षेप में पुष्टि मांगना।
+7. पुष्टि मिलने पर (हाँ/जी) ही "status":"BOOKED" वाला JSON देना।
+8. अपनी सोच या "NEXT QUESTION" जैसा कुछ मत बोलना।
 
-COLLECTED DATA — इन्हें दोबारा मत पूछो:
-- नाम: ${c.name ? `✓ ${c.name}` : 'अभी नहीं मिला'}
-- मोबाइल: ${c.phone ? `✓ ${c.phone}` : 'अभी नहीं मिला'}
-- तारीख: ${c.date ? `✓ ${c.date}` : 'अभी नहीं मिली'}
-- समय: ${c.time ? `✓ ${c.time}` : 'अभी नहीं मिला'}
-${slotStatus ? `- स्लॉट स्थिति: ${slotStatus}` : ''}
+COLLECTED DATA:
+- नाम: ${c.name ? `✓ ${c.name}` : 'नहीं मिला'}
+- मोबाइल: ${c.phone ? `✓ ${c.phone}` : 'नहीं मिला'}
+- तारीख: ${c.date ? `✓ ${c.date}` : 'नहीं मिली'}
+- समय: ${c.time ? `✓ ${c.time}` : 'नहीं मिला'}
+${slotStatus ? `- स्थिति: ${slotStatus}` : ''}
 
-ABHI YEH PUCHHO (sirf yeh ek sentence bolo, kuch aur nahi):
-${!c.name ? '"कृपया अपना नाम बताइए।"' : !c.phone ? '"आपका मोबाइल नंबर क्या है?"' : !c.date ? '"आप किस तारीख को आना चाहते हैं?"' : !c.time ? '"आप किस समय आना चाहते हैं?"' : '"सभी जानकारी मिल गई है — confirm करो।"'}
+PUCHHO (सिर्फ एक वाक्य):
+${!c.name ? '"कृपया अपना नाम बताइए।"' : !c.phone ? '"आपका मोबाइल नंबर क्या है?"' : !c.date ? '"आप किस तारीख को आना चाहते हैं?"' : !c.time ? '"आप किस समय आना चाहते हैं?"' : '"आपकी जानकारी सही है? क्या मैं अपॉइंटमेंट बुक कर दूँ?"'}
 
 आज: ${todayStr} | पहले से बुक: ${bookedList}`;
   };
 
   const runConversationalFlow = useCallback(async () => {
-    // Sync latest appointments from Supabase before starting
     await fetchAppointments();
-
     const todayStr = new Date().toISOString().split('T')[0];
     stepRef.current = 'name';
-
     const greet = 'डॉक्टर रमेश चावलानी की क्लिनिक में कॉल करने के लिए धन्यवाद। मैं आपकी अपॉइंटमेंट बुक करने में मदद कर सकती हूँ। कृपया अपना नाम बताइए।';
-
     let messages: any[] = [
       { role: 'system', content: buildSystemPrompt(todayStr) },
       { role: 'assistant', content: greet },
     ];
-
     await speak(greet);
 
     while (isActiveRef.current) {
       const rawText = await listenOnce();
       if (!isActiveRef.current) break;
-
       if (!rawText.trim()) {
         await speak('माफ़ कीजिये, सुनाई नहीं दिया। दोबारा बोलिए।');
         continue;
       }
 
       let userText = rawText.trim();
-      const c = collectedRef.current;
       const step = stepRef.current;
 
-      // ── EAGER CLIENT-SIDE EXTRACTION ─────────────────────────────────
-      // Store each field directly from user speech so COLLECTED DATA is
-      // always accurate and the AI never re-asks for known fields.
-
-      if (step === 'name' && !c.name) {
-        // Take whatever the user said as their name (strip punctuation)
+      // Eager Extraction
+      if (step === 'name' && !collectedRef.current.name) {
         const nm = userText.replace(/[^\u0900-\u097Fa-zA-Z\s]/g, '').trim();
-        if (nm.length >= 2) {
-          collectedRef.current.name = nm;
-          console.log('[Name extracted]', nm);
-        }
+        if (nm.length >= 2) collectedRef.current.name = nm;
       }
-
-      if (step === 'phone' || (!c.phone && extractDigits(userText).length >= 8)) {
+      if (step === 'phone' || (!collectedRef.current.phone && extractDigits(userText).length >= 8)) {
         const digits = tryExtractPhone(userText);
         if (digits && digits.length === 10) {
           collectedRef.current.phone = digits;
-          userText = digits; // send clean number to AI
-          console.log('[Phone extracted]', rawText, '→', digits);
+          userText = digits;
         }
       }
 
-      // Date and time: let AI parse and format, but mark step progress
-      // so the prompt tells AI exactly what's missing
-
       messages.push({ role: 'user', content: userText });
       messages[0] = { role: 'system', content: buildSystemPrompt(todayStr) };
-
-      // Keep context small and fast
-      if (messages.length > 10) {
-        messages = [messages[0], ...messages.slice(-8)];
-      }
+      if (messages.length > 10) messages = [messages[0], ...messages.slice(-8)];
 
       setAgentState('PROCESSING');
-
       try {
         const aiResponse = await callGroq(messages);
         if (!isActiveRef.current) break;
 
-        // ── Extract structured data from AI response ──────────────────
-        try {
-          const jsonMatch = aiResponse.match(/\{[\s\S]*?\}/);
-          if (jsonMatch) {
+        const jsonMatch = aiResponse.match(/\{[\s\S]*?\}/);
+        if (jsonMatch) {
+          try {
             const parsed = JSON.parse(jsonMatch[0]);
-            // Always update any field the AI has captured
-            if (parsed.name  && parsed.name  !== '...' && parsed.name  !== '—') collectedRef.current.name  = parsed.name;
-            if (parsed.phone && parsed.phone !== '...' && parsed.phone !== '—') collectedRef.current.phone = parsed.phone;
-            if (parsed.date  && parsed.date  !== '...' && parsed.date  !== '—') collectedRef.current.date  = parsed.date;
-            if (parsed.time  && parsed.time  !== '...' && parsed.time  !== '—') collectedRef.current.time  = parsed.time;
+            if (parsed.name && parsed.name !== '...') collectedRef.current.name = parsed.name;
+            if (parsed.phone && parsed.phone !== '...') collectedRef.current.phone = parsed.phone;
+            if (parsed.date && parsed.date !== '...') collectedRef.current.date = parsed.date;
+            if (parsed.time && parsed.time !== '...') collectedRef.current.time = parsed.time;
 
             if (parsed.status === 'BOOKED') {
               onAppointmentBooked({
                 id: '',
-                patientInfo: `${parsed.name} - ${parsed.phone}`,
-                dateTimeInfo: `${parsed.date} - ${parsed.time}`,
+                patientInfo: `${collectedRef.current.name} - ${collectedRef.current.phone}`,
+                dateTimeInfo: `${collectedRef.current.date} - ${collectedRef.current.time}`,
                 createdAt: new Date().toISOString(),
               });
               setAgentState('COMPLETED');
@@ -314,28 +259,21 @@ ${!c.name ? '"कृपया अपना नाम बताइए।"' : !c.p
               stopAll();
               return;
             }
-          }
-        } catch (e) {}
-
-        // ── Advance step tracker ──────────────────────────────────────
-        const updated = collectedRef.current;
-        if (!updated.name)        stepRef.current = 'name';
-        else if (!updated.phone)  stepRef.current = 'phone';
-        else if (!updated.date)   stepRef.current = 'date';
-        else if (!updated.time)   stepRef.current = 'time';
-        else                      stepRef.current = 'confirm';
-
-        // Remove JSON from spoken text (don't speak raw JSON to user)
-        const spokenText = aiResponse.replace(/\{[\s\S]*?\}/g, '').trim();
-        messages.push({ role: 'assistant', content: aiResponse });
-
-        if (spokenText) {
-          await speak(spokenText);
+          } catch(e){}
         }
 
+        const updated = collectedRef.current;
+        if (!updated.name) stepRef.current = 'name';
+        else if (!updated.phone) stepRef.current = 'phone';
+        else if (!updated.date) stepRef.current = 'date';
+        else if (!updated.time) stepRef.current = 'time';
+        else stepRef.current = 'confirm';
+
+        const spokenText = aiResponse.replace(/\{[\s\S]*?\}/g, '').trim();
+        messages.push({ role: 'assistant', content: aiResponse });
+        if (spokenText) await speak(spokenText);
       } catch (err) {
-        console.error('AI Flow Error:', err);
-        await speak('माफ़ कीजिये, कुछ तकनीकी दिक्कत आ गई। थोड़ी देर बाद कोशिश करें।');
+        await speak('माफ़ कीजिये, तकनीकी दिक्कत आ गई।');
         stopAll();
       }
     }
