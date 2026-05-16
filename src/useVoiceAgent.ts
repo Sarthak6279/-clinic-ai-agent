@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-
+import { getLocalAppointments } from './store';
 
 export interface Appointment {
   id: string;
@@ -144,7 +144,7 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
         model: 'llama-3.1-8b-instant',
         messages: messages,
         temperature: 0.5,
-        max_tokens: 100
+        max_tokens: 150
       })
     });
     
@@ -159,19 +159,39 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
 
   const runConversationalFlow = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0];
-    const systemPrompt = `Role: Dr. Romesh Chawalani's clinic receptionist.
-Goal: Book appointments in Hindi (Devanagari).
-Rules:
-1. VERY BRIEF responses (max 2 sentences). Ask 1 thing at a time.
-2. Collect: Name, Phone, Date, Time (Clinic: Mon-Sat 10AM-2PM & 5PM-8PM. Closed Sun. Today: ${today}).
-3. Say "डॉक्टर रमेश चावलानी".
-4. When all 4 are collected, ask: "क्या मैं अपॉइंटमेंट बुक कर दूँ?"
-5. ONLY when patient explicitly says yes to confirm, output EXACTLY this JSON and nothing else:
-{"status": "BOOKED", "name": "...", "phone": "...", "date": "YYYY-MM-DD", "time": "HH:MM AM/PM"}`;
+    
+    const appts = getLocalAppointments();
+    const bookedByDate = appts.reduce((acc, curr) => {
+      if (curr.status !== 'cancelled') {
+        if (!acc[curr.date]) acc[curr.date] = [];
+        acc[curr.date].push(curr.time);
+      }
+      return acc;
+    }, {} as Record<string, string[]>);
+    const bookedStr = Object.entries(bookedByDate).map(([d, times]) => `${d} (${times.join(', ')})`).join(' | ');
+
+    const systemPrompt = `Role: Dr. Chawalani's clinic receptionist.
+Language: Strictly Hindi (Devanagari).
+Goal: Book appointments sequentially.
+
+Strict Flow:
+1. Ask for Name. Wait for answer.
+2. Ask for 10-digit Mobile Number. Wait for answer.
+3. Ask for Date. Wait for answer.
+4. Ask for Time. Wait for answer.
+5. If the requested Date & Time is in the "Booked Slots" list below, apologize and ask for a different time.
+6. Once all 4 are collected, summarize Name, Number, Date, Time and ask: "क्या यह जानकारी सही है? हाँ या ना?"
+7. If user says No (ना), cancel the booking process.
+8. If user says Yes (हाँ) to confirm, output EXACTLY this JSON and NOTHING else:
+{"status": "BOOKED", "name": "...", "phone": "...", "date": "YYYY-MM-DD", "time": "HH:MM AM/PM"}
+
+Clinic Hours: Mon-Sat 10AM-2PM & 5PM-8PM. Closed Sundays.
+Today is ${today}.
+Booked Slots (DO NOT BOOK THESE): ${bookedStr || 'None'}`;
 
     let messages = [
       { role: 'system', content: systemPrompt },
-      { role: 'assistant', content: "नमस्ते, मैं डॉक्टर रमेश चावलानी का असिस्टेंट हूँ। मैं आपकी अपॉइंटमेंट बुक करूँगा। आपका नाम क्या है?" }
+      { role: 'assistant', content: "डॉक्टर चावलानी के क्लिनिक में कॉल करने के लिए धन्यवाद। मैं आपकी अपॉइंटमेंट बुक करने में मदद करुँगी। कृपया अपना नाम बताएं।" }
     ];
 
     await speak(messages[1].content);
@@ -181,16 +201,15 @@ Rules:
       if (!isActiveRef.current) break;
       
       if (!userText.trim()) {
-        await speak("माफ़ कीजिएगा, आवाज़ नहीं आई। फिर से बोलें?");
+        await speak("माफ़ कीजिएगा, आवाज़ नहीं आई। कृपया फिर से बोलें?");
         continue;
       }
 
       messages.push({ role: 'user', content: userText });
       
-      // Aggressively keep only the system prompt + last 2 messages (1 AI question, 1 User answer)
-      // This guarantees we never exceed the strict 6K Tokens Per Minute limit
-      if (messages.length > 3) {
-        messages = [messages[0], ...messages.slice(-2)];
+      // Keep 8 messages to remember context without exceeding 6K TPM limit
+      if (messages.length > 9) {
+        messages = [messages[0], ...messages.slice(-8)];
       }
 
       setAgentState('PROCESSING');
