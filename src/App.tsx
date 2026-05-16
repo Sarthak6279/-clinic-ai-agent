@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { useVoiceAgent, type Appointment } from './useVoiceAgent';
 import { saveAppointment, fetchAppointments, generateId, type BookedSlot } from './store';
 import AdminLogin from './AdminLogin';
@@ -442,7 +443,7 @@ function VoiceWidget({ isOpen, onClose, agentState, transcript }: any) {
   return (
     <div className={`widget-overlay ${isOpen ? 'open' : ''}`} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="widget">
-        <button className="widget-close" onClick={onClose}>✕</button>
+        <button className="widget-close" onClick={onClose}>��</button>
         <div className={`widget-avatar ${agentState === 'SPEAKING' ? 'speaking' : ''}`}>
           {agentState === 'LISTENING' ? '🎤' : agentState === 'COMPLETED' ? '✅' : '🤖'}
         </div>
@@ -535,6 +536,7 @@ export default function App() {
 
   return (
     <>
+      <Analytics />
       <Nav onBook={handleOpenCall} />
       <Hero onBook={handleOpenCall} />
       <Profile />
