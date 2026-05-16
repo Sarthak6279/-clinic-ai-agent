@@ -272,3 +272,83 @@ footer { background: var(--navy); color: rgba(255,255,255,0.7); padding: 3.5rem 
   /* Prevent 'Available now' badge from overlapping on mobile */
   .hero-badge2 { top: auto; bottom: 20px; right: 20px; position: relative; display: inline-flex; margin-top: 1rem; }
 }
+
+/* ── CALL INTERFACE ── */
+.call-overlay {
+  position: fixed; inset: 0; background: #000; z-index: 10000;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-family: 'Inter', sans-serif;
+}
+.call-screen {
+  width: 100%; max-width: 450px; height: 100%; max-height: 900px;
+  background: linear-gradient(180deg, #1a1a1a 0%, #000000 100%);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 4rem 2rem 3rem; position: relative;
+}
+.call-header { text-align: center; margin-bottom: 3rem; }
+.call-status { font-size: 0.9rem; color: rgba(255,255,255,0.6); margin-bottom: 0.5rem; letter-spacing: 0.05em; }
+.call-name { font-size: 2rem; font-weight: 700; margin-bottom: 0.25rem; }
+.call-timer { font-size: 1.1rem; color: rgba(255,255,255,0.8); font-variant-numeric: tabular-nums; }
+
+.call-avatar-wrap { position: relative; margin-bottom: 4rem; }
+.call-avatar {
+  width: 140px; height: 140px; border-radius: 50%;
+  background: #333; position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.call-avatar-inner {
+  width: 100%; height: 100%; border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue), var(--cyan));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 3rem; color: white;
+}
+.pulse-ring {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: var(--blue); border-radius: 50%;
+  animation: call-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  z-index: -1;
+}
+@keyframes call-pulse {
+  0% { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+.call-transcript-wrap {
+  flex: 1; width: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center;
+  padding-bottom: 4rem;
+}
+.call-status-label { font-size: 0.75rem; font-weight: 800; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem; }
+.call-transcript { font-size: 1.25rem; line-height: 1.5; color: rgba(255,255,255,0.9); max-width: 300px; min-height: 3.5rem; }
+
+.call-controls { width: 100%; margin-top: auto; }
+.call-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem; margin-bottom: 4rem;
+}
+.call-control-item { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+.call-control-btn {
+  width: 65px; height: 65px; border-radius: 50%;
+  background: rgba(255,255,255,0.1); display: flex;
+  align-items: center; justify-content: center;
+  font-size: 1.5rem; transition: background 0.2s;
+}
+.call-control-item span { font-size: 0.75rem; color: rgba(255,255,255,0.6); }
+
+.call-actions { display: flex; justify-content: center; }
+.call-hangup {
+  width: 75px; height: 75px; border-radius: 50%;
+  background: #FF3B30; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 10px 30px rgba(255,59,48,0.3);
+  transition: transform 0.2s;
+}
+.call-hangup:active { transform: scale(0.9); }
+.call-hangup-icon { transform: rotate(135deg); font-size: 2.2rem; color: white; }
+
+@media (max-height: 700px) {
+  .call-avatar-wrap { margin-bottom: 2rem; scale: 0.8; }
+  .call-header { margin-bottom: 1.5rem; }
+  .call-grid { gap: 0.75rem; margin-bottom: 2rem; }
+  .call-control-btn { width: 55px; height: 55px; }
+}
