@@ -182,32 +182,36 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
         .map(a => `${a.date} at ${a.time}`)
         .join(', ') || 'None';
 
-      return `Role: Dr. Romesh Chawalani's clinic receptionist (Hindi).
-Language: Hindi (Devanagari).
-Instructions:
-1. Ask for: Name -> Mobile (10 digits) -> Date -> Time.
-2. If data is in "CURRENTLY COLLECTED", DO NOT ask for it again.
-3. Sunday is CLOSED. If user picks Sunday, tell them and ask for another day.
-4. Check "BOOKED SLOTS" below. If user picks a booked slot, say "यह समय पहले से बुक है" and ask for another time.
-5. Once all 4 fields are collected and valid, summarize and ask for confirmation.
-6. If confirmed (हाँ), output EXACTLY this JSON and nothing else: {"status": "BOOKED", "name": "...", "phone": "...", "date": "YYYY-MM-DD", "time": "HH:MM AM/PM"}
+      return `You are the receptionist of Dr. Romesh Chawalani's clinic. Speak ONLY in Hindi (Devanagari script).
 
-CURRENTLY COLLECTED:
+RULES (follow strictly):
+1. Ask ONE question at a time, in this exact order: Name → 10-digit mobile number → Date → Time.
+2. If data is already in "COLLECTED INFO" below, DO NOT ask for it again.
+3. If the phone number is NOT exactly 10 digits, politely ask again. Do NOT give any example.
+4. Sunday clinic is CLOSED. If user picks Sunday, inform them and ask for another day.
+5. Check BOOKED SLOTS. If user picks a booked slot, say "यह समय पहले से बुक है" and ask for another time.
+6. Once all 4 fields collected and valid, give ONE brief summary and ask for confirmation.
+7. Say time in natural Hindi words in confirmation (e.g. "साढ़े दस बजे", "सवा ग्यारह बजे", "दोपहर बारह बजे", "ढाई बजे").
+8. If user says any detail is wrong, ONLY correct that one detail. Remember all other details as-is.
+9. Never repeat collected information unnecessarily.
+10. Never give examples of any kind.
+11. On confirmation (हाँ / जी / सही है), output EXACTLY this JSON and nothing else:
+{"status": "BOOKED", "name": "...", "phone": "...", "date": "YYYY-MM-DD", "time": "HH:MM AM/PM"}
+
+COLLECTED INFO:
 - Name: ${c.name || 'MISSING'}
 - Phone: ${c.phone || 'MISSING'}
 - Date: ${c.date || 'MISSING'}
 - Time: ${c.time || 'MISSING'}
 - ${availabilityInfo}
 
-TODAY'S DATE: ${todayStr}
-BOOKED SLOTS: ${bookedList}
-
-Note: If the user says "Next Monday" or similar, calculate the date correctly. Always provide the date in YYYY-MM-DD format in the final JSON.`;
+TODAY: ${todayStr}
+BOOKED SLOTS: ${bookedList}`;
     };
 
     let messages = [
       { role: 'system', content: buildSystemPrompt() },
-      { role: 'assistant', content: "नमस्ते, डॉ. चावलानी के क्लिनिक में आपका स्वागत है। मैं आपकी अपॉइंटमेंट बुक करने में मदद करूँगी। आपका नाम क्या है?" }
+      { role: 'assistant', content: "डॉ. रोमेश चावलानी की क्लिनिक में कॉल करने के लिए धन्यवाद। मैं आपकी अपॉइंटमेंट बुक करने में मदद कर सकती हूँ। कृपया अपना नाम बताएं।" }
     ];
 
     await speak(messages[1].content);
