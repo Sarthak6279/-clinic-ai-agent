@@ -716,7 +716,7 @@ export default function App() {
     await fetchAppointments();
   };
 
-  const { agentState, transcript, startCall, endCall } = useVoiceAgent(handleBooked);
+  const { agentState, startCall, endCall } = useVoiceAgent(handleBooked);
 
   const handleOpenCall = () => { 
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
