@@ -205,7 +205,7 @@ export async function saveAppointment(slot: BookedSlot): Promise<void> {
   const normalizedSlot = normalizeAppointment(slot);
 
   if (supabase) {
-    const { id, ...dbRowWithoutId } = {
+    const dbRow = {
       id: normalizedSlot.id,
       date: normalizedSlot.date,
       time: normalizedSlot.time,
@@ -217,8 +217,7 @@ export async function saveAppointment(slot: BookedSlot): Promise<void> {
       status: normalizedSlot.status,
     };
     
-    // Omit 'id' so Supabase auto-generates it based on its schema (UUID or BIGINT)
-    const { data, error } = await supabase.from('appointments').insert([dbRowWithoutId]).select().single();
+    const { data, error } = await supabase.from('appointments').insert([dbRow]).select().single();
     
     if (error) {
       console.error("Supabase insert error:", error);
