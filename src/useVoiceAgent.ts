@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { fetchAppointments, getLocalAppointments, isSlotBooked, ALL_SLOTS } from './store';
+import { fetchAppointments, isSlotBooked, ALL_SLOTS } from './store';
 
 export interface Appointment {
   id: string;
@@ -281,9 +281,8 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
         await speak(`${raw.trim() ? 'यह 10 अंकों का नंबर नहीं है।' : 'सुनाई नहीं दिया।'} दोबारा 10 अंकों का मोबाइल नंबर बताइए।`);
         continue;
       }
-      const today = new Date();
-      const pad = (n: number) => String(n).padStart(2, '0');
-      await speak(`धन्यवाद। आप किस तारीख को आना चाहते हैं? आज ${today.getDate()} ${['जनवरी','फरवरी','मार्च','अप्रैल','मई','जून','जुलाई','अगस्त','सितंबर','अक्टूबर','नवंबर','दिसंबर'][today.getMonth()]} है।`);
+      const todayForMsg = new Date();
+      await speak(`धन्यवाद। आप किस तारीख को आना चाहते हैं? आज ${todayForMsg.getDate()} ${['जनवरी','फरवरी','मार्च','अप्रैल','मई','जून','जुलाई','अगस्त','सितंबर','अक्टूबर','नवंबर','दिसंबर'][todayForMsg.getMonth()]} है।`);
     }
 
     // ── STEP 3: Date ──────────────────────────────────────────────────────
@@ -305,8 +304,8 @@ export function useVoiceAgent(onAppointmentBooked: (appt: Appointment) => void) 
         continue;
       }
       // Check past date
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      if (new Date(parsed + 'T12:00:00') < today) {
+      const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
+      if (new Date(parsed + 'T12:00:00') < todayMidnight) {
         await speak('यह तारीख बीत चुकी है। आगे की कोई तारीख बताइए।');
         continue;
       }
