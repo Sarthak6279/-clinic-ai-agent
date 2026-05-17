@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { APPOINTMENTS_STORAGE_KEY, fetchAppointments, getLocalAppointments, updateAppointmentStatus, deleteAppointment, type BookedSlot } from './store';
+import { APPOINTMENTS_STORAGE_KEY, ALL_SLOTS, fetchAppointments, getLocalAppointments, updateAppointmentStatus, deleteAppointment, saveAppointment, generateId, isSlotBooked, type BookedSlot } from './store';
 
 const FILTERS = ['all', 'confirmed', 'completed', 'cancelled'] as const;
 
@@ -11,6 +11,9 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [selectedDate, setSelectedDate] = useState('');
 
   const [refreshing, setRefreshing] = useState(false);
+  const [showWalkinForm, setShowWalkinForm] = useState(false);
+  const [walkinForm, setWalkinForm] = useState({ name: '', phone: '', date: new Date().toISOString().slice(0, 10), time: '', reason: '' });
+  const [walkinSaving, setWalkinSaving] = useState(false);
 
   const reload = async () => {
     setRefreshing(true);
@@ -114,10 +117,65 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           {selectedDate && <button onClick={() => setSelectedDate('')} style={{ padding: '0.5rem 1rem', borderRadius: 20, border: '1.5px solid #e74c3c', color: '#e74c3c', background: 'white', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.82rem', fontWeight: 600 }}>✕ Clear Date</button>}
           
           <div style={{ flex: 1 }} />
+          <button onClick={() => setShowWalkinForm(v => !v)} style={{ padding: '0.6rem 1.25rem', borderRadius: 6, border: 'none', background: showWalkinForm ? '#EF4444' : '#10B981', color: '#FFFFFF', fontWeight: 500, fontSize: '0.9rem', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}>
+            {showWalkinForm ? '✕ Close Form' : '+ Add Walk-in Patient'}
+          </button>
           <button onClick={reload} disabled={refreshing} style={{ padding: '0.6rem 1.25rem', borderRadius: 6, border: 'none', background: '#0F172A', color: '#FFFFFF', fontWeight: 500, fontSize: '0.9rem', cursor: refreshing ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'opacity 0.2s', opacity: refreshing ? 0.7 : 1 }}>
             {refreshing ? 'Syncing...' : 'Sync Database'}
           </button>
         </div>
+
+        {/* Walk-in Patient Form */}
+        {showWalkinForm && (
+          <div style={{ background: '#FFFFFF', borderRadius: 12, padding: '1.5rem', border: '2px solid #10B981', marginBottom: '1.5rem', boxShadow: '0 4px 12px rgba(16,185,129,0.1)' }}>
+            <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '1.05rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, background: '#10B981', color: '#FFF', fontSize: '0.85rem' }}>+</span>
+              Add Walk-in Patient
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (!walkinForm.name || !walkinForm.phone || !walkinForm.date || !walkinForm.time) return;
+              setWalkinSaving(true);
+              const slot: BookedSlot = {
+                id: generateId(),
+                date: walkinForm.date,
+                time: walkinForm.time,
+                patientName: walkinForm.name,
+                patientPhone: walkinForm.phone,
+                reason: walkinForm.reason || 'Walk-in Patient',
+                bookedVia: 'form',
+                createdAt: new Date().toISOString(),
+                status: 'confirmed',
+              };
+              await saveAppointment(slot);
+              await reload();
+              setWalkinForm({ name: '', phone: '', date: new Date().toISOString().slice(0, 10), time: '', reason: '' });
+              setWalkinSaving(false);
+              setShowWalkinForm(false);
+            }} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <input required placeholder="Patient Name *" value={walkinForm.name} onChange={e => setWalkinForm(f => ({ ...f, name: e.target.value }))}
+                style={{ padding: '0.7rem 1rem', borderRadius: 8, border: '1.5px solid #CBD5E1', fontFamily: 'inherit', fontSize: '0.9rem', color: '#0F172A', outline: 'none' }} />
+              <input required placeholder="Mobile Number * (10 digits)" value={walkinForm.phone} onChange={e => setWalkinForm(f => ({ ...f, phone: e.target.value }))}
+                style={{ padding: '0.7rem 1rem', borderRadius: 8, border: '1.5px solid #CBD5E1', fontFamily: 'inherit', fontSize: '0.9rem', color: '#0F172A', outline: 'none' }} />
+              <input required type="date" value={walkinForm.date} onChange={e => { setWalkinForm(f => ({ ...f, date: e.target.value, time: '' })); }}
+                style={{ padding: '0.7rem 1rem', borderRadius: 8, border: '1.5px solid #CBD5E1', fontFamily: 'inherit', fontSize: '0.9rem', color: '#0F172A', outline: 'none' }} />
+              <select required value={walkinForm.time} onChange={e => setWalkinForm(f => ({ ...f, time: e.target.value }))}
+                style={{ padding: '0.7rem 1rem', borderRadius: 8, border: '1.5px solid #CBD5E1', fontFamily: 'inherit', fontSize: '0.9rem', color: walkinForm.time ? '#0F172A' : '#94A3B8', outline: 'none', background: '#FFF' }}>
+                <option value="" disabled>Select Time Slot *</option>
+                {ALL_SLOTS.map(s => {
+                  const booked = walkinForm.date ? isSlotBooked(walkinForm.date, s) : false;
+                  return <option key={s} value={s} disabled={booked}>{s}{booked ? ' (Booked)' : ''}</option>;
+                })}
+              </select>
+              <input placeholder="Reason (optional)" value={walkinForm.reason} onChange={e => setWalkinForm(f => ({ ...f, reason: e.target.value }))}
+                style={{ padding: '0.7rem 1rem', borderRadius: 8, border: '1.5px solid #CBD5E1', fontFamily: 'inherit', fontSize: '0.9rem', color: '#0F172A', outline: 'none' }} />
+              <button type="submit" disabled={walkinSaving || !walkinForm.name || !walkinForm.phone || !walkinForm.time}
+                style={{ padding: '0.7rem 1rem', borderRadius: 8, border: 'none', background: walkinSaving ? '#94A3B8' : '#10B981', color: '#FFF', fontFamily: 'inherit', fontWeight: 600, fontSize: '0.9rem', cursor: walkinSaving ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
+                {walkinSaving ? 'Saving...' : 'Save Appointment'}
+              </button>
+            </form>
+          </div>
+        )}
 
         {/* Appointments Table */}
         <div style={{ background: '#FFFFFF', borderRadius: 12, border: '1px solid #E2E8F0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
@@ -164,8 +222,8 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                       </td>
                       <td style={{ padding: '1rem 1.5rem', color: '#64748B', maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a?.reason || '—'}</td>
                       <td style={{ padding: '1rem 1.5rem' }}>
-                        <span style={{ display: 'inline-block', background: '#F1F5F9', color: '#475569', padding: '0.25rem 0.6rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 600 }}>
-                          {a?.bookedVia === 'voice' || a?.bookedVia === 'ai' ? 'Voice AI' : 'Web Form'}
+                        <span style={{ display: 'inline-block', background: a?.bookedVia === 'voice' || a?.bookedVia === 'ai' ? '#EFF6FF' : '#F0FDF4', color: a?.bookedVia === 'voice' || a?.bookedVia === 'ai' ? '#3B82F6' : '#16A34A', padding: '0.25rem 0.6rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 600 }}>
+                          {a?.bookedVia === 'voice' || a?.bookedVia === 'ai' ? 'Voice AI' : 'Walk-in / Form'}
                         </span>
                       </td>
                       <td style={{ padding: '1rem 1.5rem' }}>
