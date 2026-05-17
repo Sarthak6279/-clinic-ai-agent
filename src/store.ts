@@ -205,7 +205,7 @@ export async function saveAppointment(slot: BookedSlot): Promise<void> {
   const normalizedSlot = normalizeAppointment(slot);
 
   if (supabase) {
-    const dbRow = {
+    const { id, ...dbRowWithoutId } = {
       id: normalizedSlot.id,
       date: normalizedSlot.date,
       time: normalizedSlot.time,
@@ -216,11 +216,18 @@ export async function saveAppointment(slot: BookedSlot): Promise<void> {
       created_at: normalizedSlot.createdAt,
       status: normalizedSlot.status,
     };
-    const { error } = await supabase.from('appointments').insert([dbRow]);
+    
+    // Omit 'id' so Supabase auto-generates it based on its schema (UUID or BIGINT)
+    const { data, error } = await supabase.from('appointments').insert([dbRowWithoutId]).select().single();
+    
     if (error) {
       console.error("Supabase insert error:", error);
       alert("Failed to save to cloud database. Please check Supabase configuration.");
       return; // Do not save locally if cloud fails!
+    }
+    
+    if (data && data.id) {
+      normalizedSlot.id = data.id; // Use the real DB generated ID
     }
   }
 
