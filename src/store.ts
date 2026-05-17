@@ -222,7 +222,7 @@ export async function saveAppointment(slot: BookedSlot): Promise<void> {
     
     if (error) {
       console.error("Supabase insert error:", error);
-      alert("Failed to save to cloud database. Please check Supabase configuration.");
+      alert("Supabase Database Error: " + (error.message || JSON.stringify(error)));
       return; // Do not save locally if cloud fails!
     }
     
