@@ -209,11 +209,11 @@ export async function saveAppointment(slot: BookedSlot): Promise<void> {
       id: normalizedSlot.id,
       date: normalizedSlot.date,
       time: normalizedSlot.time,
-      patient_name: normalizedSlot.patientName,
-      patient_phone: normalizedSlot.patientPhone,
+      patientName: normalizedSlot.patientName,
+      patientPhone: normalizedSlot.patientPhone,
       reason: normalizedSlot.reason,
-      booked_via: normalizedSlot.bookedVia,
-      created_at: normalizedSlot.createdAt,
+      bookedVia: normalizedSlot.bookedVia,
+      createdAt: normalizedSlot.createdAt,
       status: normalizedSlot.status,
     };
     
