@@ -88,12 +88,16 @@ export default function BookingCalendar({ onClose }: { onClose?: () => void }) {
   const firstDay = new Date(year, month, 1).getDay();
   const monthName = new Date(year, month, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
 
-  const handleDayClick = (d: number) => {
+  const handleDayClick = async (d: number) => {
     const dateStr = formatDate(year, month, d);
     if (isPast(year, month, d) || isSunday(year, month, d)) return;
     setSelectedDate(dateStr);
     setSelectedTime('');
     setStep('slots');
+    // Always fetch latest from Supabase when user picks a date
+    // This ensures AI/voice bookings made on other devices are visible immediately
+    await fetchAppointments();
+    rebuildSlots(dateStr);
   };
 
   const handleSlotClick = (slot: string) => {
