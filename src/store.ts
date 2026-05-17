@@ -81,12 +81,35 @@ function splitLegacyField(value?: string) {
   return { first: first.trim(), second: second.trim() };
 }
 
-// ── Normalize time: "02:00 PM" → "2:00 PM", "09:30 AM" → "9:30 AM" ──────────
+// ── Normalize time: "02:00 PM" → "2:00 PM", "2:00" → "2:00 PM" ──────────────
 export function normalizeTime(time: string): string {
   if (!time) return time;
   let t = time.trim().toUpperCase();
   t = t.replace(/\s*(AM|PM)/i, ' $1'); // Ensure a single space before AM/PM
   t = t.replace(/^0(\d):/, '$1:');     // Strip leading zero in hour
+
+  // If AM/PM is completely missing (e.g. "2:00", "14:00"), add it
+  if (!/AM|PM/.test(t)) {
+    const match = t.match(/^(\d{1,2}):(\d{2})$/);
+    if (match) {
+      let hour = parseInt(match[1], 10);
+      const min = match[2];
+      if (hour >= 13 && hour <= 23) {
+        // 24-hour format: 14:00 → 2:00 PM
+        t = `${hour - 12}:${min} PM`;
+      } else if (hour === 12) {
+        t = `12:${min} PM`;
+      } else if (hour === 0) {
+        t = `12:${min} AM`;
+      } else if (hour >= 9 && hour <= 11) {
+        // Clinic hours: 9-11 are AM
+        t = `${hour}:${min} AM`;
+      } else {
+        // Hours 1-8 during clinic hours are PM (1 PM - 8 PM)
+        t = `${hour}:${min} PM`;
+      }
+    }
+  }
   return t;
 }
 
