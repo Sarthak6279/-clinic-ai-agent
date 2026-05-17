@@ -84,7 +84,10 @@ function splitLegacyField(value?: string) {
 // ── Normalize time: "02:00 PM" → "2:00 PM", "09:30 AM" → "9:30 AM" ──────────
 export function normalizeTime(time: string): string {
   if (!time) return time;
-  return time.trim().replace(/^0(\d):/, '$1:');
+  let t = time.trim().toUpperCase();
+  t = t.replace(/\s*(AM|PM)/i, ' $1'); // Ensure a single space before AM/PM
+  t = t.replace(/^0(\d):/, '$1:');     // Strip leading zero in hour
+  return t;
 }
 
 // ── Normalize phone: strip spaces, dashes, brackets ─────────────────────────
@@ -179,7 +182,18 @@ export async function saveAppointment(slot: BookedSlot): Promise<void> {
   const normalizedSlot = normalizeAppointment(slot);
 
   if (supabase) {
-    const { error } = await supabase.from('appointments').insert([normalizedSlot]);
+    const dbRow = {
+      id: normalizedSlot.id,
+      date: normalizedSlot.date,
+      time: normalizedSlot.time,
+      patient_name: normalizedSlot.patientName,
+      patient_phone: normalizedSlot.patientPhone,
+      reason: normalizedSlot.reason,
+      booked_via: normalizedSlot.bookedVia,
+      created_at: normalizedSlot.createdAt,
+      status: normalizedSlot.status,
+    };
+    const { error } = await supabase.from('appointments').insert([dbRow]);
     if (error) {
       console.error("Supabase insert error:", error);
       alert("Failed to save to cloud database. Please check Supabase configuration.");

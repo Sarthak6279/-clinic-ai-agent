@@ -690,29 +690,23 @@ export default function App() {
   }, [isAdminAuthed]);
 
   const handleBooked = async (a: Appointment) => {
-    // Split the mapped strings safely
-    const partsName = (a.patientInfo || '').split(' - ');
-    const partsDate = (a.dateTimeInfo || '').split(' - ');
-    
-    const name = partsName[0]?.trim() || a.patientInfo || 'Unknown';
-    const phone = partsName[1]?.trim() || 'Via Voice AI';
-    const date = partsDate[0]?.trim() || new Date().toISOString().slice(0, 10);
-    const time = partsDate[1]?.trim() || 'AI Booking';
+    // Normalize time: ensure it matches slot format like "10:00 AM"
+    let time = (a.time || '').trim().toUpperCase();
+    time = time.replace(/\s*(AM|PM)/, ' $1').replace(/^0(\d):/, '$1:');
+    if (!time) time = (a.dateTimeInfo || '').split(' - ')[1]?.trim() || '9:00 AM';
 
     const slot: BookedSlot = {
       id: generateId(),
-      date: date,
+      date: a.date || (a.dateTimeInfo || '').split(' - ')[0]?.trim() || new Date().toISOString().slice(0, 10),
       time: time,
-      patientName: name,
-      patientPhone: phone,
+      patientName: a.patientName || (a.patientInfo || '').split(' - ')[0]?.trim() || 'Unknown',
+      patientPhone: a.patientPhone || (a.patientInfo || '').split(' - ')[1]?.trim() || '',
       reason: 'AI Voice Booking',
       bookedVia: 'ai',
       createdAt: a.createdAt,
       status: 'confirmed',
     };
-    // Await so Supabase save completes and calendar updates immediately
     await saveAppointment(slot);
-    // Force-refresh so calendar reflects the new booking across all devices
     await fetchAppointments();
   };
 
