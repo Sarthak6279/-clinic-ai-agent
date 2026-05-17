@@ -19,9 +19,19 @@ export type AgentState = 'IDLE' | 'SPEAKING' | 'LISTENING' | 'PROCESSING' | 'COM
 const HINDI_DIGITS: Record<string, string> = {
   'शून्य': '0', 'एक': '1', 'दो': '2', 'तीन': '3', 'चार': '4',
   'पाँच': '5', 'पांच': '5', 'छह': '6', 'छः': '6', 'सात': '7',
-  'आठ': '8', 'नौ': '9',
+  'आठ': '8', 'नौ': '9', 'दस': '10', 'ग्यारह': '11', 'बारह': '12',
+  'तेरह': '13', 'चौदह': '14', 'पंद्रह': '15', 'सोलह': '16', 'सत्रह': '17',
+  'अठारह': '18', 'उन्नीस': '19', 'बीस': '20', 'इक्कीस': '21', 'बाईस': '22',
+  'तेईस': '23', 'चौबीस': '24', 'पच्चीस': '25', 'छब्बीस': '26', 'सत्ताईस': '27',
+  'अट्ठाईस': '28', 'उनतीस': '29', 'तीस': '30', 'इकतीस': '31',
   'zero': '0', 'one': '1', 'two': '2', 'three': '3', 'four': '4',
   'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9',
+  'ten': '10', 'eleven': '11', 'twelve': '12', 'thirteen': '13',
+  'fourteen': '14', 'fifteen': '15', 'sixteen': '16', 'seventeen': '17',
+  'eighteen': '18', 'nineteen': '19', 'twenty': '20', 'twenty one': '21',
+  'twenty two': '22', 'twenty three': '23', 'twenty four': '24',
+  'twenty five': '25', 'twenty six': '26', 'twenty seven': '27',
+  'twenty eight': '28', 'twenty nine': '29', 'thirty': '30', 'thirty one': '31'
 };
 const DEVA_DIGIT: Record<string, string> = {
   '०': '0', '१': '1', '२': '2', '३': '3', '४': '4',
@@ -44,7 +54,12 @@ function tryExtractPhone(text: string): string | null {
 
 // ── Parse spoken date (today/kal/परसों/DD-MM/YYYY-MM-DD) ────────────────────
 function parseSpokenDate(text: string): string | null {
-  const t = text.toLowerCase().trim();
+  // 1. Normalize Devanagari and Hindi number words to ASCII digits
+  let t = text.toLowerCase().trim();
+  for (const [d, a] of Object.entries(DEVA_DIGIT)) t = t.split(d).join(a);
+  const words = Object.keys(HINDI_DIGITS).sort((a, b) => b.length - a.length);
+  for (const w of words) t = t.replace(new RegExp(w, 'gi'), HINDI_DIGITS[w]);
+
   const today = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
   const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -67,7 +82,7 @@ function parseSpokenDate(text: string): string | null {
     if (day >= 1 && day <= 31 && month >= 1 && month <= 12)
       return `${year}-${pad(month)}-${pad(day)}`;
   }
-  // spoken digits like "17 May" / "17 मई"
+  // spoken digits like "17 May" or "May 17" or "17 मई"
   const months: Record<string, number> = {
     jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
     jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
@@ -75,13 +90,31 @@ function parseSpokenDate(text: string): string | null {
     जुलाई: 7, अगस्त: 8, सितंबर: 9, अक्टूबर: 10, नवंबर: 11, दिसंबर: 12,
   };
   for (const [mName, mNum] of Object.entries(months)) {
-    const re = new RegExp(`(\\d{1,2})\\s*${mName}`, 'i');
-    const m = t.match(re);
+    const re1 = new RegExp(`\\b(\\d{1,2})\\s*${mName}`, 'i');
+    const re2 = new RegExp(`${mName}\\s*(\\d{1,2})\\b`, 'i');
+    const m = t.match(re1) || t.match(re2);
     if (m) {
       const day = parseInt(m[1]);
-      return `${today.getFullYear()}-${pad(mNum)}-${pad(day)}`;
+      if (day >= 1 && day <= 31) {
+        return `${today.getFullYear()}-${pad(mNum)}-${pad(day)}`;
+      }
     }
   }
+
+  // If no month is explicitly found, but a day number is spoken
+  const justDay = t.match(/\b(\d{1,2})\b/);
+  if (justDay) {
+    const day = parseInt(justDay[1]);
+    if (day >= 1 && day <= 31) {
+      const guess = new Date(today.getFullYear(), today.getMonth(), day);
+      // If the date has already passed in the current month, assume next month
+      if (guess < new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
+        guess.setMonth(guess.getMonth() + 1);
+      }
+      return fmt(guess);
+    }
+  }
+  
   return null;
 }
 
